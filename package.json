@@ -1,0 +1,26 @@
+{
+  "name": "contents-factory",
+  "version": "1.0.0",
+  "description": "5-Category Photo Factory - 카테고리별 사진 촬영 및 관리 웹 애플리케이션",
+  "private": true,
+  "scripts": {
+    "dev": "python -m http.server 8000",
+    "start": "python -m http.server 8000"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/garimto81/contents-factory.git"
+  },
+  "keywords": [
+    "photo",
+    "factory",
+    "uppy",
+    "cloudinary",
+    "supabase"
+  ],
+  "author": "garimto81",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
