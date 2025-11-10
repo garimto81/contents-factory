@@ -148,16 +148,28 @@ contents-factory/
 4. 갤러리 → 작업 목록 조회
 
 ### Step 2: Vercel 배포 (15분)
-```bash
-# GitHub 푸시
-git add .
-git commit -m "feat: Add MVP implementation"
-git push origin master
 
-# Vercel 연동
+**방법 1: GitHub 연동 (추천) 🚀**
+1. Vercel 대시보드: https://vercel.com/dashboard
+2. **New Project** → `garimto81/contents-factory` 선택
+3. **Environment Variables** 설정:
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
+   - `CLOUDINARY_CLOUD_NAME`
+   - `CLOUDINARY_UPLOAD_PRESET`
+4. **Deploy** 클릭
+
+**방법 2: CLI 배포**
+```bash
+# Vercel CLI 설치
+npm install -g vercel
+
+# 로그인 및 배포
 vercel login
 vercel --prod
 ```
+
+**상세 가이드**: [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md) 참조
 
 ---
 
