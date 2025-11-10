@@ -214,6 +214,78 @@
     .user-info img {
       border: 2px solid white;
     }
+
+    /* 모바일 최적화 */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px 0; /* 상하 여백 축소 */
+      }
+
+      .upload-container {
+        border-radius: 10px;
+        margin: 0 10px;
+      }
+
+      .header {
+        padding: 15px; /* 헤더 패딩 축소 */
+      }
+
+      .header h2 {
+        font-size: 1.25rem;
+      }
+
+      .tab-content {
+        padding: 20px; /* 패딩 축소 */
+        min-height: auto; /* ✅ 고정 높이 제거 */
+      }
+
+      .nav-tabs .nav-link {
+        padding: 10px 15px;
+        font-size: 0.9rem;
+      }
+
+      .job-info {
+        padding: 15px;
+        margin: 15px 20px;
+      }
+
+      .submit-btn {
+        padding: 12px;
+        font-size: 1rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 5px 0;
+      }
+
+      .header {
+        padding: 10px;
+      }
+
+      .header h2 {
+        font-size: 1.1rem;
+      }
+
+      .tab-content {
+        padding: 15px;
+      }
+
+      .nav-tabs .nav-link {
+        padding: 8px 10px;
+        font-size: 0.85rem;
+      }
+
+      .nav-tabs .nav-link .badge {
+        font-size: 0.7rem;
+      }
+
+      .job-info {
+        padding: 10px;
+        margin: 10px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -337,6 +409,10 @@
         return;
       }
 
+      // 모바일에서 Uppy 높이 축소
+      const isMobile = window.innerWidth <= 768;
+      const dashboardHeight = isMobile ? 200 : 300;
+
       const uppy = new Core({
         id: `uppy-${category.id}`,
         restrictions: {
@@ -349,17 +425,18 @@
       .use(Dashboard, {
         inline: true,
         target: `#uppy-${category.id}`,
-        height: 300,
+        height: dashboardHeight,
+        disableLocalFiles: true, // ✅ "내 기기" 파일 선택 비활성화 (카메라만 사용)
         proudlyDisplayPoweredByUppy: false,
-        note: `${category.label} 사진 (최대 ${APP_CONFIG.photosPerCategory}장)`,
+        note: `${category.label} 사진 (카메라로 촬영)`,
         locale: {
           strings: {
-            dropPasteImportBoth: '사진을 드래그하거나 %{browse}',
-            browse: '선택하세요',
             takePicture: '📸 촬영하기',
             dropPaste: '사진을 여기에 드롭',
             uploading: '업로드 중...',
-            complete: '완료!'
+            complete: '완료!',
+            uploadComplete: '업로드 완료',
+            poweredBy: ''
           }
         }
       })
@@ -376,6 +453,30 @@
         method: 'POST',
         headers: {},
         bundle: false
+      });
+
+      // 업로드 시작 전 검증
+      uppy.on('upload', (data) => {
+        console.log('📤 업로드 시작:', {
+          files: data.fileIDs.length,
+          category: category.label,
+          cloudName: window.CLOUDINARY_CLOUD_NAME,
+          preset: window.CLOUDINARY_UPLOAD_PRESET
+        });
+
+        // 필수 설정 확인
+        if (!window.CLOUDINARY_CLOUD_NAME) {
+          console.error('❌ Cloudinary Cloud Name이 설정되지 않았습니다');
+          alert('❌ Cloudinary Cloud Name이 설정되지 않았습니다. config.js를 확인하세요.');
+          uppy.cancelAll();
+          return false;
+        }
+        if (!window.CLOUDINARY_UPLOAD_PRESET) {
+          console.error('❌ Cloudinary Upload Preset이 설정되지 않았습니다');
+          alert('❌ Cloudinary Upload Preset이 설정되지 않았습니다. config.js를 확인하세요.');
+          uppy.cancelAll();
+          return false;
+        }
       });
 
       // 업로드 전 Cloudinary 파라미터 추가
@@ -415,9 +516,25 @@
       });
 
       // 업로드 오류 시
-      uppy.on('upload-error', (file, error) => {
-        console.error('업로드 오류:', error);
-        alert(`업로드 실패: ${error.message}`);
+      uppy.on('upload-error', (file, error, response) => {
+        console.error('❌ 업로드 오류 상세:', {
+          file: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          error: error,
+          response: response,
+          cloudName: window.CLOUDINARY_CLOUD_NAME,
+          preset: window.CLOUDINARY_UPLOAD_PRESET,
+          endpoint: `https://api.cloudinary.com/v1_1/${window.CLOUDINARY_CLOUD_NAME}/image/upload`
+        });
+
+        // Cloudinary 에러 메시지 확인
+        if (response && response.body && response.body.error) {
+          console.error('❌ Cloudinary Error:', response.body.error);
+          alert(`업로드 실패: ${response.body.error.message}`);
+        } else {
+          alert(`업로드 실패: ${error.message}`);
+        }
       });
 
       uppyInstances[category.id] = uppy;
