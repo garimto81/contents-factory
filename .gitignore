@@ -1,43 +1,40 @@
-# 프로젝트 폴더들 (전역 설정과 무관)
-actiontracker/
-ai-production/
-commercial/
-config/
-handlogger/
-keyplayer_manager/
-pd-note/
-softsender/
-table_tracker/
+# 환경 변수
+.env
+.env.local
+.env.*.local
 
-# 개발 환경
+# Node modules
+node_modules/
+
+# Python
 .venv/
-.vscode/
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # 백업 파일
 *.backup
-docs.backup/
-scripts.backup/
+*.bak
+*~
 
 # 임시 파일
-*.md.backup
+*.tmp
 nul
 
-# Claude 설정
-.claude/
+# 로그
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude 설정 (전역 설정만)
 .claude-global/
-
-# 구버전 문서들
-create-prd.md
-generate-tasks.md
-process-task-list.md
-SUMMARY.md
-TASKS_HISTORY.md
-CLAUDE.md.backup
-.gitmodules
-.claude-sync.sh
-
-# Symlinks
-docs-global/
-scripts-global/
