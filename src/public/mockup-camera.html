@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>촬영 버튼 목업</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    .upload-container {
+      max-width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: white;
+    }
+
+    /* 상단 고정 영역 */
+    .fixed-top-section {
+      flex-shrink: 0;
+      background: white;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .header h2 {
+      font-size: 1.2rem;
+      margin: 0;
+    }
+
+    /* 제목 입력 */
+    .title-section {
+      padding: 15px;
+      background: white;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .title-section input {
+      width: 100%;
+      padding: 12px;
+      font-size: 1.1rem;
+      border: 2px solid #667eea;
+      border-radius: 8px;
+    }
+
+    /* 촬영/업로드 영역 */
+    .tab-content {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 20px;
+    }
+
+    .camera-section {
+      margin-bottom: 30px;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    /* 촬영 버튼 */
+    .camera-btn {
+      width: 100%;
+      height: 150px;
+      border: 3px dashed #667eea;
+      border-radius: 15px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 20px;
+    }
+
+    .camera-btn:hover {
+      background: linear-gradient(135deg, #e7f1ff 0%, #d4e6ff 100%);
+      border-color: #764ba2;
+      transform: scale(1.02);
+    }
+
+    .camera-btn i {
+      font-size: 3rem;
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+
+    .camera-btn span {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #667eea;
+    }
+
+    /* 파일 선택 버튼 */
+    .file-btn {
+      width: 100%;
+      height: 120px;
+      border: 2px solid #667eea;
+      border-radius: 15px;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 20px;
+    }
+
+    .file-btn:hover {
+      background: #f8f9fa;
+      border-color: #764ba2;
+    }
+
+    .file-btn i {
+      font-size: 2.5rem;
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+
+    .file-btn span {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #667eea;
+    }
+
+    /* 사진 그리드 */
+    .photos-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .photo-preview {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      aspect-ratio: 1;
+      background: #f8f9fa;
+    }
+
+    .photo-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .photo-preview .check-mark {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      background: #28a745;
+      color: white;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    /* 하단 고정 버튼 */
+    .fixed-bottom-section {
+      flex-shrink: 0;
+      background: white;
+      padding: 15px;
+      border-top: 1px solid #e0e0e0;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 15px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      color: white;
+      transition: all 0.3s;
+    }
+
+    .submit-btn:active {
+      transform: scale(0.98);
+    }
+
+    .badge-count {
+      background: #28a745;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      margin-left: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="upload-container">
+    <!-- 상단 고정 영역 -->
+    <div class="fixed-top-section">
+      <!-- Header -->
+      <div class="header">
+        <h2>
+          <i class="bi bi-camera-fill"></i> 사진 촬영
+        </h2>
+        <p class="mt-2 mb-0">사진을 촬영하거나 업로드하세요</p>
+      </div>
+
+      <!-- 제목 입력 -->
+      <div class="title-section">
+        <input type="text" placeholder="제목 입력 (예: 2025 WSOP 메인 이벤트)">
+      </div>
+    </div>
+
+    <!-- 촬영/업로드 영역 (스크롤 가능) -->
+    <div class="tab-content">
+      <div class="camera-section">
+        <div class="section-title">
+          📸 사진
+          <span class="badge-count">3장</span>
+        </div>
+
+        <!-- 📸 카메라 촬영 버튼 -->
+        <button class="camera-btn" onclick="alert('카메라 촬영 시작')">
+          <i class="bi bi-camera-fill"></i>
+          <span>📸 카메라로 촬영하기</span>
+        </button>
+
+        <!-- 📁 파일 선택 버튼 -->
+        <button class="file-btn" onclick="alert('파일 선택')">
+          <i class="bi bi-image"></i>
+          <span>📁 갤러리에서 선택</span>
+        </button>
+
+        <!-- 촬영된 사진 그리드 -->
+        <div class="photos-grid">
+          <!-- 샘플 사진 1 -->
+          <div class="photo-preview">
+            <img src="https://via.placeholder.com/300" alt="사진1">
+            <div class="check-mark">✓</div>
+          </div>
+
+          <!-- 샘플 사진 2 -->
+          <div class="photo-preview">
+            <img src="https://via.placeholder.com/300/667eea" alt="사진2">
+            <div class="check-mark">✓</div>
+          </div>
+
+          <!-- 샘플 사진 3 -->
+          <div class="photo-preview">
+            <img src="https://via.placeholder.com/300/764ba2" alt="사진3">
+            <div class="check-mark">✓</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 하단 고정 버튼 -->
+    <div class="fixed-bottom-section">
+      <button class="submit-btn" onclick="alert('업로드 완료!')">
+        <i class="bi bi-cloud-upload"></i> 업로드 완료
+      </button>
+    </div>
+  </div>
+
+</body>
+</html>

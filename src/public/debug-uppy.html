@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Uppy Debug</title>
+  <link href="https://releases.transloadit.com/uppy/v3.21.0/uppy.min.css" rel="stylesheet">
+</head>
+<body>
+  <h1>Uppy 로딩 테스트</h1>
+  <div id="status"></div>
+  <div id="uppy-test" style="margin-top: 20px;"></div>
+
+  <script src="https://releases.transloadit.com/uppy/v3.21.0/uppy.min.js"></script>
+
+  <script>
+    const statusDiv = document.getElementById('status');
+
+    // 1. Uppy 전역 객체 확인
+    console.log('1. window.Uppy:', window.Uppy);
+    statusDiv.innerHTML += `<p>1. window.Uppy: ${typeof window.Uppy}</p>`;
+
+    if (window.Uppy) {
+      console.log('2. Uppy.Core:', window.Uppy.Core);
+      statusDiv.innerHTML += `<p>2. Uppy.Core: ${typeof window.Uppy.Core}</p>`;
+
+      console.log('3. Uppy.Dashboard:', window.Uppy.Dashboard);
+      statusDiv.innerHTML += `<p>3. Uppy.Dashboard: ${typeof window.Uppy.Dashboard}</p>`;
+
+      console.log('4. Uppy.Webcam:', window.Uppy.Webcam);
+      statusDiv.innerHTML += `<p>4. Uppy.Webcam: ${typeof window.Uppy.Webcam}</p>`;
+
+      // Uppy 초기화 시도
+      try {
+        const { Core, Dashboard, Webcam } = window.Uppy;
+
+        const uppy = new Core({
+          id: 'test',
+          autoProceed: false
+        })
+        .use(Dashboard, {
+          inline: true,
+          target: '#uppy-test',
+          height: 400
+        })
+        .use(Webcam, {
+          target: Dashboard,
+          modes: ['picture']
+        });
+
+        statusDiv.innerHTML += `<p style="color: green;">✅ Uppy 초기화 성공!</p>`;
+        console.log('✅ Uppy 초기화 성공:', uppy);
+      } catch (error) {
+        statusDiv.innerHTML += `<p style="color: red;">❌ Uppy 초기화 실패: ${error.message}</p>`;
+        console.error('❌ Uppy 초기화 실패:', error);
+      }
+    } else {
+      statusDiv.innerHTML += `<p style="color: red;">❌ Uppy 라이브러리가 로드되지 않았습니다</p>`;
+    }
+  </script>
+</body>
+</html>

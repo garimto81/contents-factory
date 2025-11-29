@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#667eea">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>사진 촬영 - Photo Factory</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #f8f9fa;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .app-container {
+      max-width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: white;
+    }
+
+    /* Header - Fixed */
+    .header {
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header h1 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-back {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      font-size: 1.2rem;
+    }
+
+    /* Title Input */
+    .title-section {
+      flex-shrink: 0;
+      padding: 15px 20px;
+      background: white;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .title-input {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 1.1rem;
+      border: 2px solid #667eea;
+      border-radius: 12px;
+      outline: none;
+      transition: all 0.3s;
+    }
+
+    .title-input:focus {
+      border-color: #764ba2;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    }
+
+    /* Main Content - Scrollable */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 20px;
+    }
+
+    /* Category Tabs */
+    .category-tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+      scrollbar-width: none;
+    }
+
+    .category-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .category-tab {
+      flex-shrink: 0;
+      padding: 10px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 25px;
+      background: white;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.3s;
+      white-space: nowrap;
+    }
+
+    .category-tab.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-color: transparent;
+    }
+
+    .category-tab .count {
+      background: rgba(0,0,0,0.1);
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: 5px;
+      font-size: 0.8rem;
+    }
+
+    .category-tab.active .count {
+      background: rgba(255,255,255,0.3);
+    }
+
+    /* PRD-0003: Camera Button - 150px+ height */
+    .camera-btn {
+      width: 100%;
+      min-height: 180px; /* PRD-0003: height -> min-height */
+      max-width: 500px;
+      margin: 0 auto 20px;
+      border: 3px dashed #667eea;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .camera-btn:hover, .camera-btn:active {
+      background: linear-gradient(135deg, #e7f1ff 0%, #d4e6ff 100%);
+      border-color: #764ba2;
+      transform: scale(1.02);
+    }
+
+    .camera-btn i {
+      font-size: 3.5rem;
+      color: #667eea;
+      margin-bottom: 12px;
+    }
+
+    .camera-btn span {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #667eea;
+    }
+
+    .camera-btn small {
+      font-size: 0.9rem;
+      color: #888;
+      margin-top: 5px;
+    }
+
+    /* PRD-0003: Mobile-specific size */
+    @media (max-width: 768px) {
+      .camera-btn {
+        min-height: 200px; /* PRD-0003: Mobile 200px */
+      }
+
+      .camera-btn i {
+        font-size: 4rem;
+      }
+
+      .camera-btn span {
+        font-size: 1.3rem;
+      }
+    }
+
+    /* PRD-0003: Photos Summary Button (replaces grid) */
+    .photos-summary-btn {
+      width: 100%;
+      padding: 16px 20px;
+      margin-top: 15px;
+      border: 2px solid #667eea;
+      border-radius: 12px;
+      background: white;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #667eea;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .photos-summary-btn:hover {
+      background: #f8f9fa;
+    }
+
+    .photos-summary-btn .badge {
+      background: #28a745;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 15px;
+      font-size: 0.9rem;
+    }
+
+    .photos-summary-btn.empty {
+      border-color: #ccc;
+      color: #888;
+    }
+
+    /* Footer - Fixed */
+    .footer {
+      flex-shrink: 0;
+      padding: 15px 20px;
+      background: white;
+      border-top: 1px solid #e0e0e0;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 16px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .submit-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* PRD-0003: Photos Modal */
+    .photos-modal .modal-content {
+      border-radius: 20px 20px 0 0;
+    }
+
+    .photos-modal .modal-header {
+      border-bottom: none;
+      padding: 20px;
+    }
+
+    .photos-modal .modal-title {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .photos-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      padding: 0 20px 20px;
+    }
+
+    .photo-item {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #f0f0f0;
+    }
+
+    .photo-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .photo-item .delete-btn {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255, 0, 0, 0.8);
+      color: white;
+      border: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .photo-item .category-badge {
+      position: absolute;
+      bottom: 5px;
+      left: 5px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.7rem;
+    }
+
+    /* Hidden file input */
+    .hidden-input {
+      display: none;
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255,255,255,0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .loading-overlay.hidden {
+      display: none;
+    }
+
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid #e0e0e0;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      margin-top: 15px;
+      font-size: 1rem;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Header -->
+    <div class="header">
+      <button class="btn-back" onclick="location.href='index.html'">
+        <i class="bi bi-arrow-left"></i>
+      </button>
+      <h1><i class="bi bi-camera-fill"></i> 사진 촬영</h1>
+      <div style="width: 40px;"></div>
+    </div>
+
+    <!-- Title Input -->
+    <div class="title-section">
+      <input type="text" class="title-input" id="job-title" placeholder="차량 모델 입력 (예: 제네시스 G80)">
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Category Tabs -->
+      <div class="category-tabs">
+        <button class="category-tab active" data-category="before_car">
+          입고 <span class="count" id="count-before_car">0</span>
+        </button>
+        <button class="category-tab" data-category="before_wheel">
+          문제 <span class="count" id="count-before_wheel">0</span>
+        </button>
+        <button class="category-tab" data-category="during">
+          과정 <span class="count" id="count-during">0</span>
+        </button>
+        <button class="category-tab" data-category="after_wheel">
+          해결 <span class="count" id="count-after_wheel">0</span>
+        </button>
+        <button class="category-tab" data-category="after_car">
+          출고 <span class="count" id="count-after_car">0</span>
+        </button>
+      </div>
+
+      <!-- Camera Button (PRD-0003: 150px+) -->
+      <button class="camera-btn" id="camera-btn">
+        <i class="bi bi-camera-fill"></i>
+        <span>카메라로 촬영하기</span>
+        <small id="current-category-label">입고 사진 촬영</small>
+      </button>
+
+      <!-- Hidden File Input -->
+      <input type="file" accept="image/*" capture="environment" class="hidden-input" id="camera-input" multiple>
+
+      <!-- PRD-0003: Photos Summary Button (instead of inline grid) -->
+      <button class="photos-summary-btn empty" id="photos-summary-btn" data-bs-toggle="modal" data-bs-target="#photosModal">
+        <i class="bi bi-images"></i>
+        촬영한 사진 <span class="badge" id="total-photo-count">0</span>장 보기
+      </button>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <button class="submit-btn" id="submit-btn" disabled>
+        <i class="bi bi-cloud-upload"></i>
+        작업 저장하기
+      </button>
+    </div>
+  </div>
+
+  <!-- PRD-0003: Photos Modal -->
+  <div class="modal fade photos-modal" id="photosModal" tabindex="-1">
+    <div class="modal-dialog modal-fullscreen-sm-down">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">촬영한 사진</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="photos-grid" id="photos-grid">
+            <!-- Photos will be rendered here -->
+          </div>
+          <p class="text-center text-muted" id="no-photos-message">아직 촬영한 사진이 없습니다.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay hidden" id="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-text">저장 중...</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script type="module">
+    import { db } from '../js/db.js';
+    import { jobsAPI, photosAPI, generateJobNumber, generateThumbnail } from '../js/db-api.js';
+    import { jobState } from '../js/utils/state.js';
+
+    // Categories configuration
+    const CATEGORIES = {
+      before_car: { label: '입고', description: '차량 입고 전체 사진' },
+      before_wheel: { label: '문제', description: '손상된 휠 클로즈업' },
+      during: { label: '과정', description: '작업 중 사진' },
+      after_wheel: { label: '해결', description: '복원된 휠 클로즈업' },
+      after_car: { label: '출고', description: '완료된 차량 전체 사진' }
+    };
+
+    // Current state
+    let currentCategory = 'before_car';
+    let photos = {
+      before_car: [],
+      before_wheel: [],
+      during: [],
+      after_wheel: [],
+      after_car: []
+    };
+
+    // DOM Elements
+    const cameraBtn = document.getElementById('camera-btn');
+    const cameraInput = document.getElementById('camera-input');
+    const categoryTabs = document.querySelectorAll('.category-tab');
+    const submitBtn = document.getElementById('submit-btn');
+    const photosGrid = document.getElementById('photos-grid');
+    const photosSummaryBtn = document.getElementById('photos-summary-btn');
+    const noPhotosMessage = document.getElementById('no-photos-message');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const jobTitle = document.getElementById('job-title');
+
+    // Initialize
+    function init() {
+      // Load saved state
+      const savedState = jobState.get();
+      if (savedState.carModel) {
+        jobTitle.value = savedState.carModel;
+      }
+      if (savedState.photos) {
+        photos = { ...photos, ...savedState.photos };
+      }
+
+      // Setup event listeners
+      cameraBtn.addEventListener('click', () => cameraInput.click());
+      cameraInput.addEventListener('change', handleFileSelect);
+      submitBtn.addEventListener('click', handleSubmit);
+
+      categoryTabs.forEach(tab => {
+        tab.addEventListener('click', () => selectCategory(tab.dataset.category));
+      });
+
+      // Update UI
+      updateCounts();
+      updatePhotosGrid();
+      updateSubmitButton();
+    }
+
+    // Select category
+    function selectCategory(category) {
+      currentCategory = category;
+
+      categoryTabs.forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.category === category);
+      });
+
+      document.getElementById('current-category-label').textContent =
+        `${CATEGORIES[category].label} 사진 촬영`;
+    }
+
+    // Handle file selection
+    async function handleFileSelect(event) {
+      const files = Array.from(event.target.files);
+      if (files.length === 0) return;
+
+      for (const file of files) {
+        try {
+          const thumbnail = await generateThumbnail(file, 300);
+          const fullImage = await fileToBase64(file);
+
+          const photoId = Date.now() + Math.random();
+
+          // Add to IndexedDB via jobState (images stored in IndexedDB, metadata in LocalStorage)
+          await jobState.addPhoto(currentCategory, {
+            image_data: fullImage,
+            thumbnail_data: thumbnail,
+            file_name: file.name,
+            file_size: file.size
+          });
+
+          // Keep local copy for UI display (in-memory only)
+          const photoData = {
+            id: photoId,
+            category: currentCategory,
+            thumbnail,
+            fullImage,
+            filename: file.name,
+            size: file.size,
+            createdAt: Date.now()
+          };
+
+          photos[currentCategory].push(photoData);
+        } catch (error) {
+          console.error('Failed to process photo:', error);
+          alert('사진 처리 중 오류가 발생했습니다.');
+        }
+      }
+
+      // Clear input for re-selection
+      cameraInput.value = '';
+
+      // Update non-photo state (carModel only)
+      jobState.update({ carModel: jobTitle.value });
+
+      // Update UI
+      updateCounts();
+      updatePhotosGrid();
+      updateSubmitButton();
+    }
+
+    // Convert file to base64
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+    }
+
+    // Update photo counts
+    function updateCounts() {
+      let totalCount = 0;
+
+      Object.keys(CATEGORIES).forEach(category => {
+        const count = photos[category].length;
+        document.getElementById(`count-${category}`).textContent = count;
+        totalCount += count;
+      });
+
+      document.getElementById('total-photo-count').textContent = totalCount;
+
+      // Update summary button style
+      if (totalCount > 0) {
+        photosSummaryBtn.classList.remove('empty');
+      } else {
+        photosSummaryBtn.classList.add('empty');
+      }
+    }
+
+    // Update photos grid in modal
+    function updatePhotosGrid() {
+      const allPhotos = [];
+
+      Object.keys(CATEGORIES).forEach(category => {
+        photos[category].forEach(photo => {
+          allPhotos.push({ ...photo, categoryLabel: CATEGORIES[category].label });
+        });
+      });
+
+      if (allPhotos.length === 0) {
+        photosGrid.innerHTML = '';
+        noPhotosMessage.style.display = 'block';
+        return;
+      }
+
+      noPhotosMessage.style.display = 'none';
+
+      photosGrid.innerHTML = allPhotos.map((photo, index) => `
+        <div class="photo-item" data-photo-id="${photo.id}">
+          <img src="${photo.thumbnail}" alt="Photo">
+          <button class="delete-btn" onclick="deletePhoto('${photo.category}', '${photo.id}')">
+            <i class="bi bi-x"></i>
+          </button>
+          <span class="category-badge">${photo.categoryLabel}</span>
+        </div>
+      `).join('');
+    }
+
+    // Delete photo (global function for onclick)
+    window.deletePhoto = async function(category, photoId) {
+      // Find and remove from local photos array
+      const index = photos[category].findIndex(p => p.id == photoId);
+      if (index !== -1) {
+        photos[category].splice(index, 1);
+      }
+
+      // Remove from IndexedDB via jobState
+      await jobState.removePhoto(category, index);
+
+      updateCounts();
+      updatePhotosGrid();
+      updateSubmitButton();
+    };
+
+    // Update submit button state
+    function updateSubmitButton() {
+      const totalCount = Object.values(photos).reduce((sum, arr) => sum + arr.length, 0);
+      const hasTitle = jobTitle.value.trim().length > 0;
+
+      submitBtn.disabled = !(totalCount > 0 && hasTitle);
+    }
+
+    // Handle submit
+    async function handleSubmit() {
+      const carModel = jobTitle.value.trim();
+      if (!carModel) {
+        alert('차량 모델을 입력해주세요.');
+        return;
+      }
+
+      const totalPhotos = Object.values(photos).reduce((sum, arr) => sum + arr.length, 0);
+      if (totalPhotos === 0) {
+        alert('최소 1장의 사진을 촬영해주세요.');
+        return;
+      }
+
+      // Show loading
+      loadingOverlay.classList.remove('hidden');
+
+      try {
+        // Generate job number
+        const { data: jobNumber } = await generateJobNumber();
+
+        // Create job
+        const { data: job, error: jobError } = await jobsAPI.insert({
+          job_number: jobNumber,
+          work_date: new Date().toISOString().split('T')[0],
+          car_model: carModel,
+          technician_id: 'local-user',
+          status: 'uploaded'
+        });
+
+        if (jobError) throw new Error(jobError);
+
+        // Save photos
+        const photoPromises = [];
+        let sequence = 0;
+
+        for (const category of Object.keys(CATEGORIES)) {
+          for (const photo of photos[category]) {
+            sequence++;
+            photoPromises.push(photosAPI.insert({
+              job_id: job.id,
+              category,
+              sequence,
+              thumbnail_data: photo.thumbnail,
+              image_data: photo.fullImage,
+              filename: photo.filename
+            }));
+          }
+        }
+
+        await Promise.all(photoPromises);
+
+        // Clear state
+        jobState.reset();
+
+        // Success
+        alert(`작업이 저장되었습니다!\n작업번호: ${jobNumber}`);
+        location.href = 'gallery.html';
+
+      } catch (error) {
+        console.error('Failed to save job:', error);
+        alert('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
+      } finally {
+        loadingOverlay.classList.add('hidden');
+      }
+    }
+
+    // Title input change
+    jobTitle.addEventListener('input', () => {
+      jobState.update({ carModel: jobTitle.value });
+      updateSubmitButton();
+    });
+
+    // Initialize app
+    init();
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#667eea">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>작업 상세 - Photo Factory</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #f8f9fa;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .app-container {
+      max-width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #f8f9fa;
+    }
+
+    /* Header */
+    .header {
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 0;
+      flex: 1;
+      text-align: center;
+    }
+
+    .btn-header {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      font-size: 1.2rem;
+    }
+
+    /* Job Info */
+    .job-info {
+      flex-shrink: 0;
+      background: white;
+      padding: 20px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .job-number {
+      font-size: 0.9rem;
+      color: #888;
+      font-family: monospace;
+      margin-bottom: 5px;
+    }
+
+    .job-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .job-meta {
+      display: flex;
+      gap: 20px;
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .job-meta i {
+      margin-right: 5px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-top: 10px;
+    }
+
+    .status-badge.uploaded {
+      background: #e7f1ff;
+      color: #667eea;
+    }
+
+    .status-badge.processing {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .status-badge.published {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    /* Category Tabs */
+    .category-tabs {
+      flex-shrink: 0;
+      display: flex;
+      overflow-x: auto;
+      background: white;
+      padding: 10px 20px;
+      gap: 10px;
+      border-bottom: 1px solid #e0e0e0;
+      scrollbar-width: none;
+    }
+
+    .category-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .category-tab {
+      flex-shrink: 0;
+      padding: 8px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 20px;
+      background: white;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.3s;
+      white-space: nowrap;
+    }
+
+    .category-tab.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-color: transparent;
+    }
+
+    .category-tab .count {
+      background: rgba(0,0,0,0.1);
+      padding: 2px 6px;
+      border-radius: 8px;
+      margin-left: 5px;
+      font-size: 0.75rem;
+    }
+
+    .category-tab.active .count {
+      background: rgba(255,255,255,0.3);
+    }
+
+    /* Photos Grid */
+    .photos-section {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .photos-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    @media (min-width: 768px) {
+      .photos-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .photo-card {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #f0f0f0;
+      cursor: pointer;
+    }
+
+    .photo-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s;
+    }
+
+    .photo-card:hover img {
+      transform: scale(1.05);
+    }
+
+    .photo-card .photo-number {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.75rem;
+    }
+
+    /* Empty Category */
+    .empty-category {
+      text-align: center;
+      padding: 40px 20px;
+      color: #888;
+    }
+
+    .empty-category i {
+      font-size: 3rem;
+      margin-bottom: 15px;
+      opacity: 0.5;
+    }
+
+    /* Action Buttons */
+    .action-buttons {
+      flex-shrink: 0;
+      padding: 15px 20px;
+      background: white;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      gap: 10px;
+    }
+
+    .action-btn {
+      flex: 1;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-export {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+    }
+
+    .btn-export:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-delete {
+      background: white;
+      color: #dc3545;
+      border: 2px solid #dc3545;
+    }
+
+    .btn-delete:hover {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-video {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      color: white;
+      border: none;
+    }
+
+    .btn-video:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(40, 167, 69, 0.4);
+    }
+
+    .btn-video:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* Video Progress Modal */
+    .video-progress {
+      text-align: center;
+      padding: 30px;
+    }
+
+    .video-progress .progress {
+      height: 20px;
+      border-radius: 10px;
+      margin: 20px 0;
+    }
+
+    .video-progress .progress-bar {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      transition: width 0.3s;
+    }
+
+    /* Photo Modal */
+    .photo-modal .modal-content {
+      background: black;
+      border: none;
+    }
+
+    .photo-modal .modal-header {
+      border: none;
+      padding: 15px;
+    }
+
+    .photo-modal .btn-close {
+      filter: invert(1);
+    }
+
+    .photo-modal .modal-body {
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+    }
+
+    .photo-modal img {
+      max-width: 100%;
+      max-height: 80vh;
+      object-fit: contain;
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: #888;
+    }
+
+    .loading i {
+      font-size: 2rem;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Header -->
+    <div class="header">
+      <button class="btn-header" onclick="location.href='gallery.html'">
+        <i class="bi bi-arrow-left"></i>
+      </button>
+      <h1 id="header-title">작업 상세</h1>
+      <button class="btn-header" onclick="shareJob()">
+        <i class="bi bi-share"></i>
+      </button>
+    </div>
+
+    <!-- Job Info -->
+    <div class="job-info" id="job-info">
+      <div class="loading">
+        <i class="bi bi-arrow-repeat"></i>
+        <p>로딩 중...</p>
+      </div>
+    </div>
+
+    <!-- Category Tabs -->
+    <div class="category-tabs" id="category-tabs">
+      <!-- Tabs will be rendered here -->
+    </div>
+
+    <!-- Photos Grid -->
+    <div class="photos-section">
+      <div class="photos-grid" id="photos-grid">
+        <!-- Photos will be rendered here -->
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+      <button class="action-btn btn-video" id="btn-video" onclick="generateVideo()">
+        <i class="bi bi-camera-video"></i> 영상 생성
+      </button>
+      <button class="action-btn btn-export" onclick="exportJob()">
+        <i class="bi bi-download"></i> 내보내기
+      </button>
+      <button class="action-btn btn-delete" onclick="confirmDelete()">
+        <i class="bi bi-trash"></i> 삭제
+      </button>
+    </div>
+  </div>
+
+  <!-- Video Progress Modal -->
+  <div class="modal fade" id="videoProgressModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-body video-progress">
+          <i class="bi bi-camera-video" style="font-size: 3rem; color: #28a745;"></i>
+          <h5 class="mt-3">마케팅 영상 생성 중...</h5>
+          <div class="progress">
+            <div class="progress-bar" id="video-progress-bar" role="progressbar" style="width: 0%"></div>
+          </div>
+          <p class="text-muted" id="video-progress-text">0% 완료</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Photo View Modal -->
+  <div class="modal fade photo-modal" id="photoModal" tabindex="-1">
+    <div class="modal-dialog modal-fullscreen">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <img id="modal-photo" src="" alt="Photo">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script type="module">
+    import { db } from '../js/db.js';
+    import { jobsAPI } from '../js/db-api.js';
+    import { generateAndDownloadVideo } from '../js/video-generator.js';
+
+    // Categories configuration
+    const CATEGORIES = {
+      before_car: { label: '입고', icon: 'bi-car-front' },
+      before_wheel: { label: '문제', icon: 'bi-exclamation-circle' },
+      during: { label: '과정', icon: 'bi-tools' },
+      after_wheel: { label: '해결', icon: 'bi-check-circle' },
+      after_car: { label: '출고', icon: 'bi-car-front-fill' }
+    };
+
+    let currentJob = null;
+    let currentCategory = 'all';
+    let allPhotos = [];
+
+    // Get job ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const jobId = parseInt(urlParams.get('id'));
+
+    // Initialize
+    async function init() {
+      if (!jobId) {
+        alert('잘못된 접근입니다.');
+        location.href = 'gallery.html';
+        return;
+      }
+
+      await loadJob();
+    }
+
+    // Load job data
+    async function loadJob() {
+      try {
+        currentJob = await db.jobs.get(jobId);
+
+        if (!currentJob) {
+          alert('작업을 찾을 수 없습니다.');
+          location.href = 'gallery.html';
+          return;
+        }
+
+        // Load photos
+        allPhotos = await db.photos.where('job_id').equals(jobId).toArray();
+
+        // Render
+        renderJobInfo();
+        renderCategoryTabs();
+        renderPhotos();
+
+      } catch (error) {
+        console.error('Failed to load job:', error);
+        alert('데이터를 불러오는 중 오류가 발생했습니다.');
+      }
+    }
+
+    // Render job info
+    function renderJobInfo() {
+      const statusLabels = {
+        uploaded: '업로드됨',
+        processing: '처리 중',
+        published: '게시됨'
+      };
+
+      document.getElementById('header-title').textContent = currentJob.car_model || '작업 상세';
+
+      document.getElementById('job-info').innerHTML = `
+        <div class="job-number">${currentJob.job_number}</div>
+        <div class="job-title">${currentJob.car_model || '제목 없음'}</div>
+        <div class="job-meta">
+          <span><i class="bi bi-calendar"></i> ${formatDate(currentJob.work_date)}</span>
+          <span><i class="bi bi-image"></i> ${allPhotos.length}장</span>
+        </div>
+        <span class="status-badge ${currentJob.status}">${statusLabels[currentJob.status] || currentJob.status}</span>
+      `;
+    }
+
+    // Render category tabs
+    function renderCategoryTabs() {
+      const container = document.getElementById('category-tabs');
+
+      // Count photos by category
+      const counts = { all: allPhotos.length };
+      Object.keys(CATEGORIES).forEach(cat => {
+        counts[cat] = allPhotos.filter(p => p.category === cat).length;
+      });
+
+      let html = `
+        <button class="category-tab ${currentCategory === 'all' ? 'active' : ''}" data-category="all">
+          전체 <span class="count">${counts.all}</span>
+        </button>
+      `;
+
+      Object.keys(CATEGORIES).forEach(cat => {
+        html += `
+          <button class="category-tab ${currentCategory === cat ? 'active' : ''}" data-category="${cat}">
+            ${CATEGORIES[cat].label} <span class="count">${counts[cat]}</span>
+          </button>
+        `;
+      });
+
+      container.innerHTML = html;
+
+      // Add click handlers
+      container.querySelectorAll('.category-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          currentCategory = tab.dataset.category;
+          renderCategoryTabs();
+          renderPhotos();
+        });
+      });
+    }
+
+    // Render photos
+    function renderPhotos() {
+      const container = document.getElementById('photos-grid');
+
+      let photos = currentCategory === 'all'
+        ? allPhotos
+        : allPhotos.filter(p => p.category === currentCategory);
+
+      // Sort by sequence
+      photos.sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+
+      if (photos.length === 0) {
+        container.innerHTML = `
+          <div class="empty-category" style="grid-column: 1 / -1;">
+            <i class="bi bi-image"></i>
+            <p>이 카테고리에 사진이 없습니다.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = photos.map((photo, index) => {
+        const categoryLabel = CATEGORIES[photo.category]?.label || photo.category;
+
+        return `
+          <div class="photo-card" onclick="viewPhoto(${photo.id})">
+            <img src="${photo.thumbnail_data || photo.image_data}" alt="Photo ${index + 1}">
+            <span class="photo-number">${categoryLabel} #${index + 1}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // View photo in modal
+    window.viewPhoto = function(photoId) {
+      const photo = allPhotos.find(p => p.id === photoId);
+      if (!photo) return;
+
+      document.getElementById('modal-photo').src = photo.image_data || photo.thumbnail_data;
+
+      const modal = new bootstrap.Modal(document.getElementById('photoModal'));
+      modal.show();
+    };
+
+    // Export job
+    window.exportJob = async function() {
+      try {
+        const exportData = {
+          job: currentJob,
+          photos: allPhotos,
+          exportedAt: new Date().toISOString()
+        };
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${currentJob.job_number}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        URL.revokeObjectURL(url);
+
+        alert('작업이 내보내기되었습니다.');
+      } catch (error) {
+        console.error('Export failed:', error);
+        alert('내보내기 중 오류가 발생했습니다.');
+      }
+    };
+
+    // Share job
+    window.shareJob = async function() {
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `Photo Factory - ${currentJob.car_model}`,
+            text: `작업번호: ${currentJob.job_number}\n차량: ${currentJob.car_model}\n사진: ${allPhotos.length}장`
+          });
+        } catch (error) {
+          console.log('Share cancelled');
+        }
+      } else {
+        // Copy to clipboard
+        const text = `작업번호: ${currentJob.job_number}\n차량: ${currentJob.car_model}\n사진: ${allPhotos.length}장`;
+        await navigator.clipboard.writeText(text);
+        alert('작업 정보가 클립보드에 복사되었습니다.');
+      }
+    };
+
+    // Delete job
+    window.confirmDelete = function() {
+      if (confirm(`정말로 "${currentJob.car_model}" 작업을 삭제하시겠습니까?\n\n이 작업에 포함된 ${allPhotos.length}장의 사진도 함께 삭제됩니다.`)) {
+        deleteJob();
+      }
+    };
+
+    async function deleteJob() {
+      try {
+        await jobsAPI.delete(jobId);
+        alert('작업이 삭제되었습니다.');
+        location.href = 'gallery.html';
+      } catch (error) {
+        console.error('Delete failed:', error);
+        alert('삭제 중 오류가 발생했습니다.');
+      }
+    }
+
+    // Generate marketing video
+    window.generateVideo = async function() {
+      if (allPhotos.length === 0) {
+        alert('영상을 생성할 사진이 없습니다.');
+        return;
+      }
+
+      // Check browser support
+      if (!MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+        if (!MediaRecorder.isTypeSupported('video/webm')) {
+          alert('이 브라우저는 영상 생성을 지원하지 않습니다.\nChrome 또는 Edge 브라우저를 사용해주세요.');
+          return;
+        }
+      }
+
+      // Show progress modal
+      const progressModal = new bootstrap.Modal(document.getElementById('videoProgressModal'));
+      const progressBar = document.getElementById('video-progress-bar');
+      const progressText = document.getElementById('video-progress-text');
+      progressModal.show();
+
+      // Disable button
+      const btnVideo = document.getElementById('btn-video');
+      btnVideo.disabled = true;
+
+      try {
+        await generateAndDownloadVideo(
+          allPhotos,
+          { car_model: currentJob.car_model, job_number: currentJob.job_number },
+          (progress) => {
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `${progress}% 완료`;
+          }
+        );
+
+        progressModal.hide();
+        alert('마케팅 영상이 생성되어 다운로드되었습니다!');
+      } catch (error) {
+        console.error('Video generation failed:', error);
+        progressModal.hide();
+        alert('영상 생성 중 오류가 발생했습니다.\n' + error.message);
+      } finally {
+        btnVideo.disabled = false;
+      }
+    };
+
+    // Format date
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+
+    // Initialize
+    init();
+  </script>
+
+</body>
+</html>
