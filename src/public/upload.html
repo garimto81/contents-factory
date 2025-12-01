@@ -192,6 +192,38 @@
       }
     }
 
+    /* Gallery Button (for testing / desktop) */
+    .gallery-btn {
+      width: 100%;
+      max-width: 500px;
+      margin: 0 auto 20px;
+      padding: 15px 20px;
+      border: 2px solid #adb5bd;
+      border-radius: 12px;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .gallery-btn:hover {
+      border-color: #667eea;
+      background: #f8f9fa;
+    }
+
+    .gallery-btn i {
+      font-size: 1.3rem;
+      color: #6c757d;
+    }
+
+    .gallery-btn span {
+      font-size: 1rem;
+      color: #495057;
+    }
+
     /* PRD-0003: Photos Summary Button (replaces grid) */
     .photos-summary-btn {
       width: 100%;
@@ -416,8 +448,15 @@
         <small id="current-category-label">입고 사진 촬영</small>
       </button>
 
-      <!-- Hidden File Input -->
+      <!-- Gallery Button (for testing / desktop) -->
+      <button class="gallery-btn" id="gallery-btn">
+        <i class="bi bi-folder2-open"></i>
+        <span>갤러리/폴더에서 선택</span>
+      </button>
+
+      <!-- Hidden File Inputs -->
       <input type="file" accept="image/*" capture="environment" class="hidden-input" id="camera-input" multiple>
+      <input type="file" accept="image/*" class="hidden-input" id="gallery-input" multiple>
 
       <!-- PRD-0003: Photos Summary Button (instead of inline grid) -->
       <button class="photos-summary-btn empty" id="photos-summary-btn" data-bs-toggle="modal" data-bs-target="#photosModal">
@@ -491,6 +530,8 @@
     // DOM Elements
     const cameraBtn = document.getElementById('camera-btn');
     const cameraInput = document.getElementById('camera-input');
+    const galleryBtn = document.getElementById('gallery-btn');
+    const galleryInput = document.getElementById('gallery-input');
     const categoryTabs = document.querySelectorAll('.category-tab');
     const submitBtn = document.getElementById('submit-btn');
     const photosGrid = document.getElementById('photos-grid');
@@ -513,6 +554,8 @@
       // Setup event listeners
       cameraBtn.addEventListener('click', () => cameraInput.click());
       cameraInput.addEventListener('change', handleFileSelect);
+      galleryBtn.addEventListener('click', () => galleryInput.click());
+      galleryInput.addEventListener('change', handleFileSelect);
       submitBtn.addEventListener('click', handleSubmit);
 
       categoryTabs.forEach(tab => {
@@ -547,6 +590,7 @@
       if (currentTotal + files.length > MAX_TOTAL_PHOTOS) {
         alert(`최대 ${MAX_TOTAL_PHOTOS}장까지만 업로드할 수 있습니다. (현재: ${currentTotal}장)`);
         cameraInput.value = '';
+        galleryInput.value = '';
         return;
       }
 
@@ -604,8 +648,9 @@
         alert('모든 파일 업로드에 실패했습니다.');
       }
 
-      // Clear input for re-selection
+      // Clear inputs for re-selection
       cameraInput.value = '';
+      galleryInput.value = '';
 
       // Update non-photo state (carModel only)
       jobState.update({ carModel: jobTitle.value });
