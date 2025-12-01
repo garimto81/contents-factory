@@ -2,6 +2,74 @@
 // Provides Supabase-compatible API using IndexedDB
 
 import { db } from './db.js';
+import { ValidationError } from './utils/errors.js';
+
+// Constants
+const MAX_CAR_MODEL_LENGTH = 100;
+const JOB_NUMBER_PATTERN = /^WHL\d{6}\d{3}$/;
+const VALID_STATUSES = ['uploaded', 'processing', 'published'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+/**
+ * Validate job data before insert/update
+ * @param {Object} jobData - Job data to validate
+ * @param {boolean} isUpdate - Whether this is an update (some fields optional)
+ * @throws {ValidationError} If validation fails
+ */
+export function validateJobData(jobData, isUpdate = false) {
+  if (!jobData || typeof jobData !== 'object') {
+    throw new ValidationError('작업 데이터가 올바르지 않습니다.');
+  }
+
+  // Required fields for insert
+  if (!isUpdate) {
+    if (!jobData.job_number) {
+      throw new ValidationError('작업번호는 필수입니다.', 'job_number');
+    }
+    if (!jobData.car_model) {
+      throw new ValidationError('차량 모델은 필수입니다.', 'car_model');
+    }
+  }
+
+  // job_number format validation
+  if (jobData.job_number && !JOB_NUMBER_PATTERN.test(jobData.job_number)) {
+    throw new ValidationError('작업번호 형식이 올바르지 않습니다. (예: WHL250112001)', 'job_number');
+  }
+
+  // car_model length validation
+  if (jobData.car_model && jobData.car_model.length > MAX_CAR_MODEL_LENGTH) {
+    throw new ValidationError(`차량 모델명은 ${MAX_CAR_MODEL_LENGTH}자를 초과할 수 없습니다.`, 'car_model');
+  }
+
+  // status validation
+  if (jobData.status && !VALID_STATUSES.includes(jobData.status)) {
+    throw new ValidationError(`상태값이 올바르지 않습니다. (${VALID_STATUSES.join(', ')})`, 'status');
+  }
+
+  return true;
+}
+
+/**
+ * Validate file for upload
+ * @param {File} file - File to validate
+ * @throws {ValidationError} If validation fails
+ */
+export function validateFile(file) {
+  if (!file) {
+    throw new ValidationError('파일이 없습니다.');
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    throw new ValidationError(`파일 크기가 너무 큽니다. (최대: ${MAX_FILE_SIZE / 1024 / 1024}MB)`);
+  }
+
+  if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+    throw new ValidationError(`지원하지 않는 파일 형식입니다. (${ALLOWED_FILE_TYPES.join(', ')})`);
+  }
+
+  return true;
+}
 
 /**
  * Jobs API
@@ -15,6 +83,9 @@ export const jobsAPI = {
    */
   async insert(jobData) {
     try {
+      // Validate job data
+      validateJobData(jobData);
+
       const id = await db.jobs.add({
         ...jobData,
         created_at: jobData.created_at || Date.now(),
@@ -59,20 +130,24 @@ export const jobsAPI = {
 
               const jobs = await collection.sortBy(orderField);
 
-              // Get photos for each job
-              const jobsWithPhotos = await Promise.all(
-                jobs.map(async (job) => {
-                  const photos = await db.photos
-                    .where('job_id')
-                    .equals(job.id)
-                    .sortBy('sequence');
+              // Bulk fetch all photos for all jobs (N+1 Query 해결)
+              const jobIds = jobs.map(j => j.id);
+              const allPhotos = jobIds.length > 0
+                ? await db.photos.where('job_id').anyOf(jobIds).toArray()
+                : [];
 
-                  return {
-                    ...job,
-                    photos: photos
-                  };
-                })
-              );
+              // Group photos by job_id (in-memory)
+              const photosByJob = allPhotos.reduce((acc, photo) => {
+                if (!acc[photo.job_id]) acc[photo.job_id] = [];
+                acc[photo.job_id].push(photo);
+                return acc;
+              }, {});
+
+              // Attach photos to jobs (sorted by sequence)
+              const jobsWithPhotos = jobs.map(job => ({
+                ...job,
+                photos: (photosByJob[job.id] || []).sort((a, b) => a.sequence - b.sequence)
+              }));
 
               return callback({ data: jobsWithPhotos, error: null });
             } catch (error) {

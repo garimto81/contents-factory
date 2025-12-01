@@ -239,19 +239,30 @@ export async function getTempPhotos(sessionId) {
 
 /**
  * Get temp photos count by category for a session
+ * Optimized: Uses filter + count instead of toArray to avoid loading image data
  * @param {string} sessionId - Session identifier
  * @returns {Promise<Object>} - Count per category
  */
 export async function getTempPhotosCount(sessionId) {
-  try {
-    const photos = await db.temp_photos
-      .where('session_id')
-      .equals(sessionId)
-      .toArray();
+  const categories = ['before_car', 'before_wheel', 'during', 'after_wheel', 'after_car'];
 
+  try {
+    // Count each category in parallel (no image data loaded)
+    const countPromises = categories.map(async (category) => {
+      const count = await db.temp_photos
+        .where('session_id')
+        .equals(sessionId)
+        .filter(photo => photo.category === category)
+        .count();
+      return [category, count];
+    });
+
+    const results = await Promise.all(countPromises);
     const counts = {};
-    for (const photo of photos) {
-      counts[photo.category] = (counts[photo.category] || 0) + 1;
+    for (const [category, count] of results) {
+      if (count > 0) {
+        counts[category] = count;
+      }
     }
 
     return counts;

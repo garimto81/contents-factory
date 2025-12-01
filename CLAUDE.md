@@ -6,118 +6,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-### 한 줄 정의
-**휠 복원 기술자를 위한 모바일 우선 사진 관리 PWA** - 작업 전/중/후 사진을 5개 카테고리로 분류하여 마케팅 콘텐츠 생성을 자동화
+**Photo Factory** - 휠 복원 기술자를 위한 모바일 우선 사진 관리 PWA
 
-### 핵심 워크플로우
-```
-📸 현장 촬영 (2분)  →  📁 5개 카테고리 분류  →  🎬 마케팅 영상 자동 생성  →  📱 SNS 업로드
-     before_car           IndexedDB 저장            15초 Before/After 릴스       Instagram/TikTok
-     before_wheel
-     during
-     after_wheel
-     after_car
-```
+작업 전/중/후 사진을 5개 카테고리로 분류하여 마케팅 콘텐츠 생성을 자동화합니다.
 
-### 타겟 사용자
-- **휠 복원 전문점 기술자**: 하루 다수 작업 처리, 현장에서 빠른 촬영 필요
-- **소상공인**: SNS 마케팅으로 고객 유치, 최소 시간 투자로 콘텐츠 생성
-
-### 비즈니스 목표
-| 기존 방식 | Photo Factory |
-|----------|---------------|
-| 사진 촬영 후 수동 정리 (30분+) | 카테고리별 자동 분류 (2분) |
-| 영상 편집 앱 별도 사용 (1시간+) | 원클릭 릴스 생성 (10분) |
-| SNS 개별 업로드 | 다중 플랫폼 자동 배포 |
-
-### 기술 스택
-| 레이어 | 기술 | 선택 이유 |
-|--------|------|-----------|
-| **Frontend** | Vanilla JS (ES6) | 프레임워크 의존성 최소화, PWA 경량화 |
-| **Storage** | IndexedDB (Dexie.js) | 오프라인 우선, 대용량 이미지 저장 |
-| **Build** | Vite | 빠른 HMR, ES 모듈 네이티브 지원 |
-| **Test** | Vitest + Playwright | 단위 테스트 + E2E 테스트 |
-
-### 오프라인 우선 설계
-```
-┌─────────────────────────────────────────┐
-│              Photo Factory PWA           │
-├─────────────────────────────────────────┤
-│  📷 Camera API    →  🗄️ IndexedDB       │
-│  (사진 촬영)          (로컬 저장)         │
-│                                          │
-│  💾 LocalStorage  →  🔄 Service Worker  │
-│  (상태 유지)          (오프라인 캐싱)     │
-└─────────────────────────────────────────┘
-```
-- **네트워크 없이 동작**: 현장(차량 정비소)에서 WiFi 없이 촬영/저장
-- **24시간 자동 만료**: 오래된 임시 작업 자동 정리
-- **브라우저 스토리지 활용**: 서버 비용 $0
-
----
-
-## Quick Start
-
-```bash
-# 1. 의존성 설치
-npm install
-
-# 2. 개발 서버 실행
-npm run dev
-
-# 3. 브라우저에서 열기
-# → http://localhost:3001
-```
-
-**5분 안에 확인할 것**:
-1. 메인 페이지 로드 확인
-2. 카테고리 선택 UI 동작
-3. 사진 촬영/업로드 테스트 (mockup-camera.html)
-
----
-
-## Project Info
-
-| 항목 | 값 |
-|------|-----|
-| **Project** | Photo Factory |
-| **Type** | PWA (Progressive Web App) |
-| **Stack** | Vanilla JavaScript (ES6), IndexedDB (Dexie.js), Vite |
-| **Dev Server** | http://localhost:3001 |
-| **Build Output** | `html/` |
+| 레이어 | 기술 |
+|--------|------|
+| Frontend | Vanilla JS (ES6), PWA |
+| Storage | IndexedDB (Dexie.js) + LocalStorage |
+| Build | Vite |
+| Test | Vitest (unit) + Playwright (E2E) |
 
 ---
 
 ## Development Commands
 
 ```bash
-# Install dependencies
-npm install
+npm install                              # Install dependencies
+npm run dev                              # Dev server → http://localhost:6010
+npm run build                            # Build → dist/
+npm run preview                          # Preview build → http://localhost:6011
 
-# Start dev server (Vite on port 3001)
-npm run dev
+# Unit Tests (Vitest)
+npm run test:unit                        # Run with watch mode
+npx vitest run                           # Run all unit tests once
+npx vitest run tests/unit/upload.test.js # Single test file
+npx vitest run --coverage                # With coverage (threshold: 70%)
 
-# Build for production (output: html/)
-npm run build
-
-# Preview production build
-npm run preview
-
-# Run unit tests (Vitest)
-npx vitest run
-
-# Run single unit test file
-npx vitest run tests/unit/upload.test.js
-
-# Run E2E tests (Playwright - requires dev server running)
-npm test
-npx playwright test --project=chromium    # Single browser
-npx playwright test --debug               # Debug mode
-npx playwright show-report                # View report
-
-# Run tests with coverage
-npx vitest run --coverage
+# E2E Tests (Playwright - requires dev server running first)
+npm run dev                              # Start dev server in one terminal
+npm test                                 # All browsers (in another terminal)
+npx playwright test --project=chromium   # Single browser
+npx playwright test --debug              # Debug mode with inspector
 ```
+
+### Port Configuration
+
+| Purpose | Port |
+|---------|------|
+| Dev Server | 6010 |
+| Preview | 6011 |
+
+**STRICT**: Port 6000-6009 are blocked by Chrome (X11 protocol). Do not use.
 
 ---
 
@@ -125,61 +55,92 @@ npx vitest run --coverage
 
 ```
 src/
-├── public/                 # HTML pages (mockups, debug views)
-│   ├── mockup-camera.html
-│   ├── mockup-simple.html
-│   └── debug-uppy.html
+├── public/                    # HTML pages
+│   ├── index.html             # Main page
+│   ├── upload.html            # Photo upload
+│   ├── gallery.html           # Photo gallery
+│   └── job-detail.html        # Job details
 ├── js/
-│   ├── db.js              # IndexedDB with Dexie.js (tables: jobs, photos, users, settings)
-│   ├── db-api.js          # Supabase-compatible API layer over IndexedDB
+│   ├── db.js                  # IndexedDB (Dexie.js) - tables: jobs, photos, temp_photos, users, settings
+│   ├── db-api.js              # Supabase-compatible API layer
+│   ├── video-generator.js     # Canvas + MediaRecorder video generation
 │   └── utils/
-│       ├── errors.js      # Custom error classes (AppError, UploadError, NetworkError, etc.)
-│       ├── retry.js       # Exponential backoff retry utility
-│       └── state.js       # JobState class with LocalStorage persistence
+│       ├── errors.js          # AppError, UploadError, NetworkError, ValidationError
+│       ├── retry.js           # withRetry(), fetchWithRetry() - exponential backoff
+│       └── state.js           # JobState class - hybrid LocalStorage + IndexedDB
 tests/
-├── setup.js               # Vitest global setup (mocks fetch, alert, console)
-├── unit/                  # Vitest unit tests
-└── server-check.spec.cjs  # Playwright E2E tests
-html/                      # Built output directory
+├── setup.js                   # Vitest global setup (mocks fetch, alert)
+├── unit/                      # Vitest unit tests
+└── *.spec.cjs                 # Playwright E2E tests
 ```
 
-### Database Layer (IndexedDB)
+---
 
-The app uses local browser storage instead of a remote backend:
+## Key Patterns
+
+### Hybrid Storage (LocalStorage + IndexedDB)
+
+Images are too large for LocalStorage, so the app uses a hybrid approach:
+
+- **LocalStorage**: Job metadata only (carModel, jobNumber, photo counts)
+- **IndexedDB**: Image data via `temp_photos` table (session-based)
 
 ```javascript
-// db.js - Dexie.js schema
-db.version(1).stores({
+// src/js/utils/state.js
+import { jobState } from './utils/state.js';
+
+// Metadata goes to LocalStorage
+jobState.update({ carModel: 'BMW 5시리즈' });
+
+// Photos go to IndexedDB (async) - image_data stored in temp_photos
+await jobState.addPhoto('before_car', {
+  image_data: base64String,
+  thumbnail_data: thumbnailBase64,
+  file_name: 'photo.jpg',
+  file_size: 1024000
+});
+
+// Retrieve photos with image data from IndexedDB
+const photosWithData = await jobState.getPhotosWithData();
+
+// Auto-cleanup: sessions expire after 24 hours
+if (jobState.isExpired()) await jobState.reset();
+```
+
+### Database Schema (db.js:14-30)
+
+```javascript
+db.version(2).stores({
   jobs: '++id, job_number, work_date, car_model, technician_id, status, created_at, updated_at',
   photos: '++id, job_id, category, sequence, uploaded_at',
+  temp_photos: '++id, session_id, category, sequence, created_at',  // Upload session storage
   users: '++id, &email, display_name, created_at',
   settings: '++id, key'
 });
-
-// db-api.js - Usage
-import { jobsAPI, photosAPI, generateJobNumber } from './db-api.js';
-const { data, error } = await jobsAPI.insert({ job_number: 'WHL250112001', car_model: '제네시스 G80' });
 ```
 
-### Error Handling Pattern
+### Job Number Format
+
+Pattern: `WHL{YYMMDD}{NNN}` (e.g., `WHL250112001`)
+- Generated in `db-api.js:319-347`
+- Sequence resets daily
+
+### Error Hierarchy (utils/errors.js)
+
+```
+AppError (base)
+├── UploadError     - retry: true
+├── NetworkError    - retry: true
+├── DatabaseError   - retry: true
+├── AuthError       - retry: false (requires login)
+└── ValidationError - retry: false (requires input fix)
+```
+
+### Retry Pattern (utils/retry.js)
 
 ```javascript
-// Custom error classes in src/js/utils/errors.js
-import { UploadError, NetworkError, ValidationError, handleError, isRetryableError } from './utils/errors.js';
-
-// Retry utility in src/js/utils/retry.js
 import { withRetry, fetchWithRetry } from './utils/retry.js';
 const result = await withRetry(() => uploadFile(file), { maxRetries: 3, delayMs: 1000 });
-```
-
-### State Management
-
-```javascript
-// src/js/utils/state.js - LocalStorage persistence
-import { jobState } from './utils/state.js';
-jobState.update({ carModel: 'BMW 5시리즈' });
-jobState.addPhoto('before_car', { url: '...', thumbnail: '...' });
-jobState.isExpired(); // true if >24 hours old
 ```
 
 ---
@@ -196,215 +157,114 @@ jobState.isExpired(); // true if >24 hours old
 
 ---
 
+## Video Generation
+
+The app generates marketing videos using Canvas + MediaRecorder API:
+
+```javascript
+import { generateAndDownloadVideo } from './video-generator.js';
+
+await generateAndDownloadVideo(photos, { car_model: 'BMW', job_number: 'WHL250112001' },
+  (progress) => console.log(`${progress}%`)
+);
+```
+
+Output: 1080x1920 WebM (vertical format for Reels/Shorts)
+
+---
+
 ## Test Configuration
 
 **Vitest** (`vitest.config.js`):
 - Environment: `happy-dom`
 - Coverage threshold: 70% (lines, functions, branches, statements)
-- Test files: `tests/unit/**/*.test.js`, `tests/integration/**/*.test.js`
 - Setup: `tests/setup.js` (mocks `fetch`, `alert`, `console`)
+- Test patterns: `tests/unit/**/*.test.js`, `tests/integration/**/*.test.js`
+- Aliases: `@` → `/src`, `@js` → `/src/js`, `@public` → `/src/public`
 
 **Playwright** (`playwright.config.cjs`):
 - Base URL: `http://localhost:6010`
 - Projects: Desktop Chrome/Firefox/Safari + Mobile Chrome/Safari
-- Timeout: 30s, Expect timeout: 5s
-
-### Port Configuration
-
-| Purpose | Port | Note |
-|---------|------|------|
-| Dev Server | **6010** | `npm run dev` |
-| Preview | **6011** | `npm run preview` |
-| Test | **6010** | Playwright baseURL |
-
-> **STRICT RULE**: Only use 6010+ ports. Port 6000-6009 are blocked by Chrome (X11 protocol). Other ranges (3000, 5000, 8000) are reserved for other projects.
+- Timeout: 30s (test), 5s (expect)
+- Test files: `tests/*.spec.cjs`
 
 ---
 
-## Key Files Reference
-
-| File | Purpose |
-|------|---------|
-| `src/js/db.js:13-25` | IndexedDB schema definition |
-| `src/js/db-api.js:319-347` | Job number generation (WHLYYMMDDNNN format) |
-| `src/js/utils/errors.js:7-27` | Base AppError class with retry flag |
-| `src/js/utils/retry.js:16-61` | withRetry() exponential backoff implementation |
-| `src/js/utils/state.js:8-179` | JobState class with LocalStorage persistence |
-
----
-
-## Marketing Video Generation (Future Feature)
-
-### Workflow
-```
-📸 사진 촬영 (2분)  →  🎬 영상 자동 생성 (10분)  →  📱 SNS 업로드
-   5개 카테고리           15초 Before/After 릴스        Instagram/TikTok
-```
-
-### Recommended Tech Stack
-
-| Layer | Tool | Purpose |
-|-------|------|---------|
-| **Browser-based** | FFmpeg.wasm | MP4 export within PWA |
-| **Lightweight** | MediaRecorder + Canvas | Simple slideshow |
-| **Desktop** | short-video-factory | GUI app, no API keys |
-| **Full automation** | CapCut + Later | Templates + scheduling |
-
-### Implementation Example
+## Debug (Browser Console)
 
 ```javascript
-// Canvas-based video generation (no external dependencies)
-async function generateMarketingVideo(photos) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1080;
-  canvas.height = 1920; // 9:16 vertical
-  const ctx = canvas.getContext('2d');
-
-  const stream = canvas.captureStream(30);
-  const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-  const chunks = [];
-
-  recorder.ondataavailable = e => chunks.push(e.data);
-  recorder.start();
-
-  // Display each photo for 3 seconds (15s total)
-  for (const photo of photos) {
-    const img = new Image();
-    img.src = photo.thumbnail;
-    await new Promise(r => img.onload = r);
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    await new Promise(r => setTimeout(r, 3000));
-  }
-
-  recorder.stop();
-  return new Promise(r => recorder.onstop = () =>
-    r(new Blob(chunks, { type: 'video/webm' }))
-  );
-}
-```
-
-### Open Source Tools Reference
-
-| Project | Stars | Use Case |
-|---------|-------|----------|
-| [short-video-factory](https://github.com/YILS-LIN/short-video-factory) | 1.7k | Desktop app, batch rendering |
-| [ShortGPT](https://github.com/RayVentura/ShortGPT) | 6.8k | Full automation with AI |
-| [FFmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) | - | Browser video processing |
-| [auto-subtitle](https://github.com/m1guelpf/auto-subtitle) | 6.4k | Whisper-based subtitles |
-
----
-
-## Marketing Automation Integration
-
-### Cost Tiers
-
-| Tier | Tools | Monthly Cost | Time/Video |
-|------|-------|--------------|------------|
-| **Free** | CapCut + Canva + Manual | $0 | 15min |
-| **Semi-auto** | Pictory.ai + Later | $54 | 6min |
-| **Full-auto** | AutoReels.ai + SendShort | $78 | 2min |
-
-### SNS Automation Workflow
-
-```
-Photo Factory (IndexedDB)
-        ↓ Webhook trigger
-CapCut/Pictory.ai (Video generation)
-        ↓ Template: "Before/After Slideshow"
-Later/AutoReels (Multi-platform posting)
-        ↓ Instagram Reels + TikTok + YouTube Shorts
-GPT-4 (Caption generation)
-        ↓ "휠 복원 전후 비교 #휠복원 #자동차정비"
-```
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-#### "Cannot find module 'dexie'" or similar import errors
-```bash
-# Reinstall dependencies
-rm -rf node_modules package-lock.json
-npm install
-```
-
-#### Development server not starting
-```bash
-# Kill existing processes and restart
-# Windows:
-taskkill /F /IM node.exe
-npm run dev
-
-# Linux/Mac:
-pkill node
-npm run dev
-```
-
-#### Camera not working on mobile
-- Ensure HTTPS is enabled (camera requires secure context)
-- Check browser permissions for camera access
-- Use `npm run dev -- --host` for network access
-
-#### Photos not saving to IndexedDB
-```javascript
-// Debug: Check storage quota
-navigator.storage.estimate().then(est => {
-  console.log(`Used: ${est.usage / 1024 / 1024}MB / ${est.quota / 1024 / 1024}MB`);
-});
-```
-
-#### Video generation fails
-- Ensure Chrome or Edge browser (WebM encoding support)
-- Check console for specific error messages
-- Verify photos exist in IndexedDB before generation
-
-#### Tests failing with timeout
-```bash
-# Ensure dev server is running first
-npm run dev &
-npm test
-```
-
-#### Port already in use
-```bash
-# Check which process is using the port
-# Windows:
-netstat -ano | findstr :6010
-
-# Linux/Mac:
-lsof -i :6010
-
-# Kill the process (strictPort enabled - won't auto-switch)
-# Windows:
-taskkill /F /PID <PID>
-```
-
-> **IMPORTANT**: This project uses port 6010 exclusively. Do NOT use:
-> - Port 6000-6009: Blocked by Chrome/Chromium (X11 protocol security)
-> - Port 3000, 5000, 8000, etc.: Reserved for other projects
-
-### Debug Tools
-
-```javascript
-// Browser Console - Check IndexedDB contents
-const db = (await import('/src/js/db.js')).db;
+// Check IndexedDB contents
+const { db } = await import('/src/js/db.js');
 console.log('Jobs:', await db.jobs.toArray());
-console.log('Photos:', await db.photos.toArray());
+console.log('Temp Photos:', await db.temp_photos.toArray());
 
 // Check LocalStorage state
 console.log(JSON.parse(localStorage.getItem('photoFactory_currentJob')));
 
-// Reset all data (caution!)
+// Check storage quota
+navigator.storage.estimate().then(e =>
+  console.log(`${(e.usage/1024/1024).toFixed(1)}MB / ${(e.quota/1024/1024).toFixed(0)}MB`)
+);
+
+// Reset all data
 (await import('/src/js/db.js')).clearAllData();
 ```
 
 ---
 
-## Parent Repository Context
+## Known Issues & Technical Debt
 
-This is a sub-project within `D:\AI\claude01\`. Follow the Phase 0-6 workflow from `../CLAUDE.md`:
-1. Create PRD in `tasks/prds/`
-2. Implement with 1:1 test pairing
-3. Commit format: `type: description [PRD-NNNN]`
+코드 리뷰 결과 (2025-12-01) 발견된 주요 이슈입니다. `TODO.md` 참조.
+
+### Critical (즉시 수정 필요)
+
+| 영역 | 이슈 | 파일 |
+|------|------|------|
+| Security | XSS - innerHTML에 사용자 입력 직접 삽입 | `gallery.html`, `upload.html`, `job-detail.html` |
+| Logic | Race Condition - 작업번호 동시 생성 시 중복 | `db-api.js:319-347` |
+| Logic | 상태 불일치 - LocalStorage ↔ IndexedDB 동기화 | `state.js:208-232` |
+| Performance | N+1 Query - Job 조회 시 Photos 반복 쿼리 | `db-api.js:63-75` |
+
+### Security Checklist (구현 필요)
+
+```javascript
+// 1. XSS 방지 - escapeHtml 함수 사용
+function escapeHtml(unsafe) {
+  return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+// 2. 입력 검증 - validateJobData 추가 필요
+// 3. 파일 업로드 - 크기(10MB), 타입(image/*) 제한 필요
+// 4. CSRF 토큰 - 향후 서버 연동 시 필요
+```
+
+### Performance Optimization Checklist
+
+- [ ] N+1 Query → `anyOf()` 사용
+- [ ] Photo Count → `count()` 직접 사용 (toArray 금지)
+- [ ] Bulk Insert → `bulkAdd()` 사용
+- [ ] Base64 변환 → `URL.createObjectURL()` 사용
+- [ ] DOM 업데이트 → DocumentFragment 사용
+
+---
+
+## Naming Convention
+
+프로젝트 내 명명 규칙:
+
+| 컨텍스트 | 규칙 | 예시 |
+|----------|------|------|
+| DB 필드 | snake_case | `image_data`, `file_name`, `session_id` |
+| JS 변수/함수 | camelCase | `storageKey`, `getPhotosWithData` |
+| 상수 | UPPER_SNAKE | `MAX_FILE_SIZE`, `CATEGORIES` |
+| 클래스 | PascalCase | `JobState`, `AppError` |
+
+---
+
+## Parent Repository
+
+This is a sub-project within `D:\AI\claude01\`. Follow Phase 0-6 workflow from `../CLAUDE.md`:
+- PRD in `tasks/prds/`
+- 1:1 test pairing
+- Commit format: `type: description [PRD-NNNN]`

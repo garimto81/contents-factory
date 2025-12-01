@@ -464,6 +464,7 @@
     import { db } from '../js/db.js';
     import { jobsAPI, photosAPI, generateJobNumber, generateThumbnail } from '../js/db-api.js';
     import { jobState } from '../js/utils/state.js';
+    import { escapeHtml, sanitizeFilename } from '../js/utils/sanitizer.js';
 
     // Categories configuration
     const CATEGORIES = {
@@ -632,12 +633,12 @@
       noPhotosMessage.style.display = 'none';
 
       photosGrid.innerHTML = allPhotos.map((photo, index) => `
-        <div class="photo-item" data-photo-id="${photo.id}">
+        <div class="photo-item" data-photo-id="${escapeHtml(photo.id)}">
           <img src="${photo.thumbnail}" alt="Photo">
-          <button class="delete-btn" onclick="deletePhoto('${photo.category}', '${photo.id}')">
+          <button class="delete-btn" onclick="deletePhoto('${escapeHtml(photo.category)}', '${escapeHtml(photo.id)}')">
             <i class="bi bi-x"></i>
           </button>
-          <span class="category-badge">${photo.categoryLabel}</span>
+          <span class="category-badge">${escapeHtml(photo.categoryLabel)}</span>
         </div>
       `).join('');
     }

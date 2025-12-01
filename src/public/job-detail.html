@@ -436,6 +436,7 @@
     import { db } from '../js/db.js';
     import { jobsAPI } from '../js/db-api.js';
     import { generateAndDownloadVideo } from '../js/video-generator.js';
+    import { escapeHtml } from '../js/utils/sanitizer.js';
 
     // Categories configuration
     const CATEGORIES = {
@@ -501,13 +502,13 @@
       document.getElementById('header-title').textContent = currentJob.car_model || '작업 상세';
 
       document.getElementById('job-info').innerHTML = `
-        <div class="job-number">${currentJob.job_number}</div>
-        <div class="job-title">${currentJob.car_model || '제목 없음'}</div>
+        <div class="job-number">${escapeHtml(currentJob.job_number)}</div>
+        <div class="job-title">${escapeHtml(currentJob.car_model) || '제목 없음'}</div>
         <div class="job-meta">
           <span><i class="bi bi-calendar"></i> ${formatDate(currentJob.work_date)}</span>
           <span><i class="bi bi-image"></i> ${allPhotos.length}장</span>
         </div>
-        <span class="status-badge ${currentJob.status}">${statusLabels[currentJob.status] || currentJob.status}</span>
+        <span class="status-badge ${escapeHtml(currentJob.status)}">${statusLabels[currentJob.status] || escapeHtml(currentJob.status)}</span>
       `;
     }
 
