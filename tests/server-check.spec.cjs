@@ -3,7 +3,7 @@
 
 const { test, expect } = require('@playwright/test');
 
-const BASE_URL = 'http://localhost:3001';
+const BASE_URL = 'http://localhost:6010';
 
 test.describe('Photo Factory Server Check', () => {
 
@@ -11,12 +11,12 @@ test.describe('Photo Factory Server Check', () => {
     await page.goto(`${BASE_URL}/index.html`);
 
     // Check page title
-    await expect(page).toHaveTitle(/포토 팩토리/);
+    await expect(page).toHaveTitle(/Photo Factory/);
 
-    // Check login button exists
-    const loginBtn = page.locator('#loginBtn');
-    await expect(loginBtn).toBeVisible();
-    await expect(loginBtn).toContainText('Google로 시작하기');
+    // Check action buttons exist (upload and gallery buttons)
+    const uploadBtn = page.locator('.action-btn').first();
+    await expect(uploadBtn).toBeVisible();
+    await expect(uploadBtn).toContainText('새 작업 시작');
 
     // Check logo
     const logo = page.locator('.logo');
@@ -29,16 +29,16 @@ test.describe('Photo Factory Server Check', () => {
     await page.goto(`${BASE_URL}/upload.html`);
 
     // Check page title
-    await expect(page).toHaveTitle(/촬영 업로드/);
+    await expect(page).toHaveTitle(/사진 촬영/);
 
     // Check header exists
     const header = page.locator('.header');
     await expect(header).toBeVisible();
 
-    // Check title input
-    const titleInput = page.locator('#jobTitle');
+    // Check title input (actual ID is 'job-title')
+    const titleInput = page.locator('#job-title');
     await expect(titleInput).toBeVisible();
-    await expect(titleInput).toHaveAttribute('placeholder', /제목 입력/);
+    await expect(titleInput).toHaveAttribute('placeholder', /차량 모델 입력/);
 
     console.log('✅ Upload page loaded successfully');
   });
@@ -47,19 +47,19 @@ test.describe('Photo Factory Server Check', () => {
     await page.goto(`${BASE_URL}/gallery.html`);
 
     // Check page title
-    await expect(page).toHaveTitle(/작업 갤러리/);
+    await expect(page).toHaveTitle(/작업 목록/);
 
-    // Check navbar
-    const navbar = page.locator('.navbar');
-    await expect(navbar).toBeVisible();
+    // Check search section
+    const searchSection = page.locator('.search-section');
+    await expect(searchSection).toBeVisible();
 
-    // Check filters section
-    const filters = page.locator('.filters');
-    await expect(filters).toBeVisible();
-
-    // Check search input
-    const searchInput = page.locator('#searchInput');
+    // Check search input (actual ID is 'search-input')
+    const searchInput = page.locator('#search-input');
     await expect(searchInput).toBeVisible();
+
+    // Check job list container (actual ID is 'jobs-list')
+    const jobList = page.locator('#jobs-list');
+    await expect(jobList).toBeVisible();
 
     console.log('✅ Gallery page loaded successfully');
   });
