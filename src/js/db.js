@@ -29,6 +29,25 @@ db.version(2).stores({
   settings: '++id, key'
 });
 
+// Database Schema - Version 3
+// Version 3: Added compound indexes for better query performance
+db.version(3).stores({
+  // Jobs table - added compound index for date+status filtering
+  jobs: '++id, job_number, work_date, car_model, technician_id, status, created_at, updated_at, [work_date+status]',
+
+  // Photos table - added compound index for job_id+sequence sorting
+  photos: '++id, job_id, category, sequence, uploaded_at, [job_id+sequence]',
+
+  // Temp Photos table - added compound index for session+category queries
+  temp_photos: '++id, session_id, category, sequence, created_at, [session_id+category]',
+
+  // Users table (unchanged)
+  users: '++id, &email, display_name, created_at',
+
+  // Settings table (unchanged)
+  settings: '++id, key'
+});
+
 /**
  * Initialize database
  * @returns {Promise<void>}
@@ -176,10 +195,21 @@ export async function getDatabaseStats() {
 
 /**
  * Generate unique session ID
+ * Uses crypto.getRandomValues for better randomness
  * @returns {string}
  */
 export function generateSessionId() {
-  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  // Use crypto.getRandomValues if available (more secure)
+  let randomPart;
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const array = new Uint32Array(2);
+    crypto.getRandomValues(array);
+    randomPart = Array.from(array, n => n.toString(36)).join('');
+  } else {
+    // Fallback to Math.random (less secure but works everywhere)
+    randomPart = Math.random().toString(36).slice(2, 11);  // slice instead of deprecated substr
+  }
+  return `session_${Date.now()}_${randomPart}`;
 }
 
 /**

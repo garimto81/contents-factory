@@ -1,6 +1,21 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
+// CSP Policy (Content Security Policy)
+const cspPolicy = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+  "img-src 'self' data: blob:",
+  "font-src 'self' https://cdn.jsdelivr.net",
+  "connect-src 'self'",
+  "media-src 'self' blob:",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'"
+].join('; ');
+
 export default defineConfig({
   root: 'src/public',
   publicDir: '../../public',
@@ -8,16 +23,35 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 6010,  // 6000-6009 are blocked by Chrome (X11 protocol)
     strictPort: true,  // 포트 사용 중이면 에러 발생 (다른 포트로 자동 변경 안 함)
-    open: true
+    open: true,
+    headers: {
+      'Content-Security-Policy': cspPolicy,
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'X-XSS-Protection': '1; mode=block'
+    }
   },
   preview: {
     host: '0.0.0.0',
     port: 6011,
-    strictPort: true
+    strictPort: true,
+    headers: {
+      'Content-Security-Policy': cspPolicy,
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'X-XSS-Protection': '1; mode=block'
+    }
   },
   build: {
     outDir: '../../dist',
     emptyOutDir: true,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,  // Remove console.log in production
+        drop_debugger: true
+      }
+    },
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'src/public/index.html'),

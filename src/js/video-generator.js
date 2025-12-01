@@ -3,6 +3,9 @@
  * Creates slideshow videos from job photos using Canvas + MediaRecorder API
  */
 
+// Constants
+const VIDEO_TIMEOUT_MS = 60 * 1000;  // 60 seconds max for video generation
+
 /**
  * Generate marketing video from photos
  * @param {Array} photos - Array of photo objects with image_data
@@ -18,6 +21,7 @@ export async function generateMarketingVideo(photos, jobInfo, options = {}) {
     photoDuration = 2000,  // ms per photo
     transitionDuration = 500,  // ms for fade
     bitrate = 5000000,  // 5 Mbps
+    timeout = VIDEO_TIMEOUT_MS,
     onProgress = null
   } = options;
 
@@ -49,13 +53,42 @@ export async function generateMarketingVideo(photos, jobInfo, options = {}) {
   const totalFrames = (totalDuration / 1000) * fps;
 
   return new Promise((resolve, reject) => {
+    let timeoutId = null;
+    let isCompleted = false;
+
+    // Cleanup function to release image memory
+    const cleanup = () => {
+      images.forEach(img => {
+        img.src = '';  // Release image memory
+      });
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+
+    // Set overall timeout
+    timeoutId = setTimeout(() => {
+      if (!isCompleted) {
+        isCompleted = true;
+        cleanup();
+        mediaRecorder.stop();
+        reject(new Error(`Video generation timeout exceeded (${timeout}ms)`));
+      }
+    }, timeout);
+
     mediaRecorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'video/webm' });
-      resolve(blob);
+      if (!isCompleted) {
+        isCompleted = true;
+        cleanup();
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        resolve(blob);
+      }
     };
 
     mediaRecorder.onerror = (e) => {
-      reject(new Error('Video recording failed: ' + e.error));
+      if (!isCompleted) {
+        isCompleted = true;
+        cleanup();
+        reject(new Error('Video recording failed: ' + (e.error?.message || e.error || 'Unknown error')));
+      }
     };
 
     // Start recording
@@ -66,53 +99,62 @@ export async function generateMarketingVideo(photos, jobInfo, options = {}) {
     const interval = 1000 / fps;
 
     const renderFrame = () => {
+      if (isCompleted) return;  // Stop if already completed/timed out
+
       if (frame >= totalFrames) {
         mediaRecorder.stop();
         return;
       }
 
-      const currentTime = (frame / fps) * 1000;
-      const photoIndex = Math.floor(currentTime / photoDuration);
-      const photoProgress = (currentTime % photoDuration) / photoDuration;
+      try {
+        const currentTime = (frame / fps) * 1000;
+        const photoIndex = Math.floor(currentTime / photoDuration);
+        const photoProgress = (currentTime % photoDuration) / photoDuration;
 
-      // Clear canvas with gradient background
-      const gradient = ctx.createLinearGradient(0, 0, 0, height);
-      gradient.addColorStop(0, '#667eea');
-      gradient.addColorStop(1, '#764ba2');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, width, height);
+        // Clear canvas with gradient background
+        const gradient = ctx.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, '#667eea');
+        gradient.addColorStop(1, '#764ba2');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
 
-      // Draw current photo
-      if (photoIndex < images.length) {
-        const img = images[photoIndex];
-        const { x, y, w, h } = calculateFitDimensions(img, width, height * 0.7);
+        // Draw current photo
+        if (photoIndex < images.length) {
+          const img = images[photoIndex];
+          const { x, y, w, h } = calculateFitDimensions(img, width, height * 0.7);
 
-        // Fade effect
-        let alpha = 1;
-        const fadeInEnd = transitionDuration / photoDuration;
-        const fadeOutStart = 1 - (transitionDuration / photoDuration);
+          // Fade effect
+          let alpha = 1;
+          const fadeInEnd = transitionDuration / photoDuration;
+          const fadeOutStart = 1 - (transitionDuration / photoDuration);
 
-        if (photoProgress < fadeInEnd) {
-          alpha = photoProgress / fadeInEnd;
-        } else if (photoProgress > fadeOutStart) {
-          alpha = (1 - photoProgress) / (1 - fadeOutStart);
+          if (photoProgress < fadeInEnd) {
+            alpha = photoProgress / fadeInEnd;
+          } else if (photoProgress > fadeOutStart) {
+            alpha = (1 - photoProgress) / (1 - fadeOutStart);
+          }
+
+          ctx.globalAlpha = alpha;
+          ctx.drawImage(img, x, y + height * 0.1, w, h);
+          ctx.globalAlpha = 1;
         }
 
-        ctx.globalAlpha = alpha;
-        ctx.drawImage(img, x, y + height * 0.1, w, h);
-        ctx.globalAlpha = 1;
+        // Draw text overlay
+        drawTextOverlay(ctx, jobInfo, photoIndex, images.length, width, height);
+
+        // Progress callback
+        if (onProgress) {
+          onProgress(Math.round((frame / totalFrames) * 100));
+        }
+
+        frame++;
+        setTimeout(renderFrame, interval);
+      } catch (renderError) {
+        console.error('Frame render error:', renderError);
+        // Continue to next frame on error
+        frame++;
+        setTimeout(renderFrame, interval);
       }
-
-      // Draw text overlay
-      drawTextOverlay(ctx, jobInfo, photoIndex, images.length, width, height);
-
-      // Progress callback
-      if (onProgress) {
-        onProgress(Math.round((frame / totalFrames) * 100));
-      }
-
-      frame++;
-      setTimeout(renderFrame, interval);
     };
 
     renderFrame();

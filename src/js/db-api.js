@@ -208,16 +208,19 @@ export const jobsAPI = {
   },
 
   /**
-   * Delete job
+   * Delete job with photos (atomic transaction)
    * @param {number} id
    */
   async delete(id) {
     try {
-      // Delete related photos first
-      await db.photos.where('job_id').equals(id).delete();
+      // Use transaction for atomic deletion (photos + job)
+      await db.transaction('rw', db.jobs, db.photos, async () => {
+        // Delete related photos first
+        await db.photos.where('job_id').equals(id).delete();
 
-      // Delete job
-      await db.jobs.delete(id);
+        // Delete job
+        await db.jobs.delete(id);
+      });
 
       return {
         data: { id },
@@ -390,35 +393,63 @@ export const usersAPI = {
 /**
  * Generate job number (local version)
  * Replaces: supabase.rpc('generate_job_number')
+ * Uses optimistic locking with retry to prevent race conditions
  */
-export async function generateJobNumber() {
-  try {
-    const today = new Date();
-    const yymmdd = today.toISOString().slice(2, 10).replace(/-/g, '');
+export async function generateJobNumber(maxRetries = 5) {
+  const today = new Date();
 
-    // Count jobs created today
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-    const todayEnd = todayStart + 24 * 60 * 60 * 1000;
+  // Use local date format (not UTC) to avoid timezone issues
+  const year = today.getFullYear().toString().slice(-2);
+  const month = (today.getMonth() + 1).toString().padStart(2, '0');
+  const day = today.getDate().toString().padStart(2, '0');
+  const yymmdd = `${year}${month}${day}`;
 
-    const todayJobs = await db.jobs
-      .where('created_at')
-      .between(todayStart, todayEnd)
-      .count();
+  // Calculate today's range in local time
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const todayEnd = todayStart + 24 * 60 * 60 * 1000;
 
-    const sequence = (todayJobs + 1).toString().padStart(3, '0');
-    const jobNumber = `WHL${yymmdd}${sequence}`;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Count jobs created today
+      const todayJobs = await db.jobs
+        .where('created_at')
+        .between(todayStart, todayEnd)
+        .count();
 
-    return {
-      data: jobNumber,
-      error: null
-    };
-  } catch (error) {
-    console.error('❌ Failed to generate job number:', error);
-    return {
-      data: `WHL${Date.now().toString().slice(-9)}`,
-      error: error.message
-    };
+      const sequence = (todayJobs + 1).toString().padStart(3, '0');
+      const jobNumber = `WHL${yymmdd}${sequence}`;
+
+      // Check if this job number already exists (race condition check)
+      const existing = await db.jobs.where('job_number').equals(jobNumber).first();
+
+      if (existing) {
+        console.warn(`⚠️ Job number ${jobNumber} already exists, retrying... (attempt ${attempt + 1})`);
+        // Small delay before retry to reduce collision chance
+        await new Promise(resolve => setTimeout(resolve, 50 * (attempt + 1)));
+        continue;
+      }
+
+      return {
+        data: jobNumber,
+        error: null
+      };
+    } catch (error) {
+      console.error(`❌ Failed to generate job number (attempt ${attempt + 1}):`, error);
+      if (attempt === maxRetries - 1) {
+        // Fallback: use timestamp-based unique number
+        return {
+          data: `WHL${Date.now().toString().slice(-9)}`,
+          error: error.message
+        };
+      }
+    }
   }
+
+  // Should not reach here, but fallback just in case
+  return {
+    data: `WHL${Date.now().toString().slice(-9)}`,
+    error: 'Max retries exceeded'
+  };
 }
 
 /**
@@ -437,50 +468,56 @@ export function fileToBase64(file) {
 
 /**
  * Helper: Generate thumbnail from image
+ * Uses URL.createObjectURL instead of FileReader to avoid double Base64 conversion
  * @param {File} file
  * @param {number} maxSize
  * @returns {Promise<string>}
  */
 export async function generateThumbnail(file, maxSize = 300) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
+    // Use Blob URL instead of Base64 for initial image load (more efficient)
+    const blobUrl = URL.createObjectURL(file);
+    const img = new Image();
 
-    reader.onload = (e) => {
-      const img = new Image();
-      img.src = e.target.result;
+    img.onload = () => {
+      // Release blob URL immediately after image loads
+      URL.revokeObjectURL(blobUrl);
 
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
 
-        // Calculate new dimensions
-        if (width > height) {
-          if (width > maxSize) {
-            height = (height * maxSize) / width;
-            width = maxSize;
-          }
-        } else {
-          if (height > maxSize) {
-            width = (width * maxSize) / height;
-            height = maxSize;
-          }
+      // Calculate new dimensions
+      if (width > height) {
+        if (width > maxSize) {
+          height = (height * maxSize) / width;
+          width = maxSize;
         }
+      } else {
+        if (height > maxSize) {
+          width = (width * maxSize) / height;
+          height = maxSize;
+        }
+      }
 
-        canvas.width = width;
-        canvas.height = height;
+      canvas.width = width;
+      canvas.height = height;
 
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
 
-        resolve(canvas.toDataURL('image/jpeg', 0.7));
-      };
+      // Clear image reference for GC
+      img.src = '';
 
-      img.onerror = reject;
+      resolve(canvas.toDataURL('image/jpeg', 0.7));
     };
 
-    reader.onerror = reject;
+    img.onerror = () => {
+      URL.revokeObjectURL(blobUrl);
+      reject(new Error('Failed to load image for thumbnail'));
+    };
+
+    img.src = blobUrl;
   });
 }
 

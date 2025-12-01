@@ -131,27 +131,94 @@ export function handleError(error, showMessage = alert, logError = console.error
   );
 }
 
+// Non-retryable error types (these should fail immediately)
+const NON_RETRYABLE_ERRORS = [
+  'QuotaExceededError',     // Storage quota exceeded
+  'SecurityError',          // Security policy violation
+  'NotAllowedError',        // Permission denied
+  'NotSupportedError',      // Feature not supported
+  'SyntaxError',            // Invalid syntax
+  'TypeError',              // Type error (except fetch)
+  'ReferenceError',         // Undefined variable
+  'RangeError',             // Invalid range
+  'ValidationError',        // Invalid input
+  'AuthError'               // Authentication required
+];
+
+// Non-retryable error messages (substring matches)
+const NON_RETRYABLE_MESSAGES = [
+  'quota',
+  'security',
+  'permission',
+  'not allowed',
+  'invalid',
+  'unauthorized',
+  'forbidden'
+];
+
 /**
  * Determine if an error is retryable
  * @param {Error} error
  * @returns {boolean}
  */
 export function isRetryableError(error) {
+  if (!error) return false;
+
+  // AppError has explicit retry flag
   if (error instanceof AppError) {
     return error.retry;
   }
 
+  // Check for explicitly non-retryable error types
+  if (NON_RETRYABLE_ERRORS.includes(error.name)) {
+    // Exception: TypeError from fetch is retryable (network issue)
+    if (error.name === 'TypeError' && error.message?.includes('fetch')) {
+      return true;
+    }
+    return false;
+  }
+
+  // Check for non-retryable error messages
+  const lowerMessage = (error.message || '').toLowerCase();
+  if (NON_RETRYABLE_MESSAGES.some(msg => lowerMessage.includes(msg))) {
+    return false;
+  }
+
   // Network errors are generally retryable
-  if (error.name === 'TypeError' && error.message.includes('fetch')) {
+  if (error.name === 'TypeError' && error.message?.includes('fetch')) {
     return true;
   }
 
-  // Timeout errors are retryable
-  if (error.name === 'AbortError' || error.message.includes('timeout')) {
+  // Timeout/abort errors are retryable
+  if (error.name === 'AbortError' || lowerMessage.includes('timeout')) {
     return true;
   }
 
+  // IndexedDB errors that are retryable
+  if (error.name === 'TransactionInactiveError' ||
+      error.name === 'ReadOnlyError' ||
+      lowerMessage.includes('transaction')) {
+    return true;
+  }
+
+  // Default: not retryable (fail fast)
   return false;
+}
+
+/**
+ * Get error category for analytics/logging
+ * @param {Error} error
+ * @returns {string}
+ */
+export function getErrorCategory(error) {
+  if (error instanceof ValidationError) return 'validation';
+  if (error instanceof AuthError) return 'auth';
+  if (error instanceof NetworkError) return 'network';
+  if (error instanceof UploadError) return 'upload';
+  if (error instanceof DatabaseError) return 'database';
+  if (error.name === 'QuotaExceededError') return 'quota';
+  if (error.name === 'SecurityError') return 'security';
+  return 'unknown';
 }
 
 /**

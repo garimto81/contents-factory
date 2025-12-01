@@ -201,34 +201,69 @@ export class JobState {
   /**
    * Add photo to category
    * Image data is stored in IndexedDB, only metadata in LocalStorage
+   * Uses Try-Catch + Rollback pattern to ensure consistency
    * @param {string} category
    * @param {Object} photo - Photo object with image_data
-   * @returns {Promise<void>}
+   * @returns {Promise<number>} - Photo ID
+   * @throws {Error} - If storage fails
    */
   async addPhoto(category, photo) {
+    // Snapshot current state for rollback
+    const prevPhotos = this._state.photos[category]
+      ? [...this._state.photos[category]]
+      : null;
+
     if (!this._state.photos[category]) {
       this._state.photos[category] = [];
     }
 
-    // Save image data to IndexedDB
-    const photoId = await saveTempPhoto(this._state.sessionId, category, {
-      image_data: photo.image_data,
-      thumbnail_data: photo.thumbnail_data,
-      file_name: photo.file_name,
-      file_size: photo.file_size,
-      sequence: this._state.photos[category].length
-    });
+    const sequence = this._state.photos[category].length;
+    let photoId = null;
 
-    // Store only metadata in state (no image data)
-    this._state.photos[category].push({
-      id: photoId,  // IndexedDB ID for retrieval
-      file_name: photo.file_name,
-      file_size: photo.file_size,
-      sequence: this._state.photos[category].length - 1
-    });
+    try {
+      // Step 1: Save image data to IndexedDB FIRST
+      photoId = await saveTempPhoto(this._state.sessionId, category, {
+        image_data: photo.image_data,
+        thumbnail_data: photo.thumbnail_data,
+        file_name: photo.file_name,
+        file_size: photo.file_size,
+        sequence
+      });
 
-    this._state.updatedAt = Date.now();
-    this.saveMetadata();  // Save metadata only to LocalStorage
+      // Step 2: Update state with metadata
+      this._state.photos[category].push({
+        id: photoId,  // IndexedDB ID for retrieval
+        file_name: photo.file_name,
+        file_size: photo.file_size,
+        sequence
+      });
+
+      this._state.updatedAt = Date.now();
+
+      // Step 3: Save metadata to LocalStorage
+      this.saveMetadata();
+
+      return photoId;
+    } catch (error) {
+      // Rollback: Restore previous state
+      if (prevPhotos === null) {
+        delete this._state.photos[category];
+      } else {
+        this._state.photos[category] = prevPhotos;
+      }
+
+      // If IndexedDB succeeded but LocalStorage failed, clean up IndexedDB
+      if (photoId !== null) {
+        try {
+          await deleteTempPhoto(photoId);
+        } catch (cleanupError) {
+          console.error('❌ Failed to cleanup IndexedDB after rollback:', cleanupError);
+        }
+      }
+
+      console.error('❌ Failed to add photo, rolled back:', error);
+      throw error;  // Re-throw for caller to handle
+    }
   }
 
   /**
@@ -290,12 +325,39 @@ export class JobState {
   }
 
   /**
-   * Check if state is expired (older than 24 hours)
+   * Check if state is expired
+   * - Absolute timeout: 8 hours from creation
+   * - Inactivity timeout: 30 minutes since last update
    * @returns {boolean}
    */
   isExpired() {
-    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-    return Date.now() - this._state.createdAt > maxAge;
+    const MS_PER_HOUR = 60 * 60 * 1000;
+    const MS_PER_MINUTE = 60 * 1000;
+
+    const absoluteTimeout = 8 * MS_PER_HOUR;  // 8 hours
+    const inactivityTimeout = 30 * MS_PER_MINUTE;  // 30 minutes
+
+    const now = Date.now();
+    const ageFromCreation = now - this._state.createdAt;
+    const ageFromUpdate = now - (this._state.updatedAt || this._state.createdAt);
+
+    // Expired if older than 8 hours OR inactive for 30 minutes
+    return ageFromCreation > absoluteTimeout || ageFromUpdate > inactivityTimeout;
+  }
+
+  /**
+   * Get remaining time until expiration (in minutes)
+   * @returns {number}
+   */
+  getRemainingTime() {
+    const MS_PER_MINUTE = 60 * 1000;
+    const inactivityTimeout = 30 * MS_PER_MINUTE;
+
+    const now = Date.now();
+    const ageFromUpdate = now - (this._state.updatedAt || this._state.createdAt);
+    const remaining = inactivityTimeout - ageFromUpdate;
+
+    return Math.max(0, Math.floor(remaining / MS_PER_MINUTE));
   }
 
   /**

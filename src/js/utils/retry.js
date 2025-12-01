@@ -3,6 +3,10 @@
 
 import { isRetryableError } from './errors.js';
 
+// Constants for retry limits
+const MAX_DELAY_MS = 30 * 1000;  // 30 seconds max delay
+const TOTAL_TIMEOUT_MS = 2 * 60 * 1000;  // 2 minutes total timeout
+
 /**
  * Retry a function with exponential backoff
  * @param {Function} fn - Async function to retry
@@ -10,6 +14,8 @@ import { isRetryableError } from './errors.js';
  * @param {number} options.maxRetries - Maximum number of retries (default: 3)
  * @param {number} options.delayMs - Initial delay in milliseconds (default: 1000)
  * @param {number} options.backoffMultiplier - Backoff multiplier (default: 2)
+ * @param {number} options.maxDelay - Maximum delay between retries (default: 30000)
+ * @param {number} options.totalTimeout - Total timeout for all retries (default: 120000)
  * @param {Function} options.onRetry - Callback called before each retry
  * @returns {Promise<any>}
  */
@@ -18,12 +24,20 @@ export async function withRetry(fn, options = {}) {
     maxRetries = 3,
     delayMs = 1000,
     backoffMultiplier = 2,
+    maxDelay = MAX_DELAY_MS,
+    totalTimeout = TOTAL_TIMEOUT_MS,
     onRetry = null
   } = options;
 
   let lastError;
+  const startTime = Date.now();
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    // Check total timeout
+    if (Date.now() - startTime > totalTimeout) {
+      throw new Error(`Retry timeout exceeded (${totalTimeout}ms)`);
+    }
+
     try {
       return await fn();
     } catch (error) {
@@ -39,8 +53,14 @@ export async function withRetry(fn, options = {}) {
         throw error;
       }
 
-      // Calculate delay with exponential backoff
-      const delay = delayMs * Math.pow(backoffMultiplier, attempt);
+      // Calculate delay with exponential backoff, capped at maxDelay
+      const calculatedDelay = delayMs * Math.pow(backoffMultiplier, attempt);
+      const delay = Math.min(calculatedDelay, maxDelay);
+
+      // Check if we have time for another retry
+      if (Date.now() - startTime + delay > totalTimeout) {
+        throw new Error(`Retry timeout exceeded (${totalTimeout}ms)`);
+      }
 
       console.warn(
         `[Retry] Attempt ${attempt + 1}/${maxRetries} failed. Retrying in ${delay}ms...`,
