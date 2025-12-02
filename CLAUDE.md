@@ -14,7 +14,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |--------|------|
 | Frontend | Vanilla JS (ES6), PWA |
 | Storage | IndexedDB (Dexie.js) + LocalStorage |
-| Build | Vite |
+| Build | Vite + vite-plugin-pwa |
+| Image | browser-image-compression (EXIF 보정) |
 | Test | Vitest (unit) + Playwright (E2E) |
 
 ---
@@ -55,24 +56,34 @@ npx playwright test --debug              # Debug mode with inspector
 
 ```
 src/
-├── public/                    # HTML pages
+├── public/                    # HTML pages (Vite root)
 │   ├── index.html             # Main page
 │   ├── upload.html            # Photo upload
 │   ├── gallery.html           # Photo gallery
-│   └── job-detail.html        # Job details
+│   ├── job-detail.html        # Job details
+│   └── dev/                   # Development mockups (gitignored)
 ├── js/
 │   ├── db.js                  # IndexedDB (Dexie.js) - tables: jobs, photos, temp_photos, users, settings
 │   ├── db-api.js              # Supabase-compatible API layer (validateJobData, validateFile)
 │   ├── video-generator.js     # Canvas + MediaRecorder video generation (60s timeout)
 │   └── utils/
 │       ├── errors.js          # AppError hierarchy + getErrorCategory()
+│       ├── image-compressor.js # browser-image-compression wrapper (EXIF fix)
 │       ├── logger.js          # Production-safe logging (sanitizeForLog)
 │       ├── retry.js           # withRetry() - exponential backoff, 2min total timeout
 │       ├── sanitizer.js       # escapeHtml() for XSS prevention
 │       └── state.js           # JobState - hybrid LocalStorage + IndexedDB (8h session)
+public/
+└── favicon.svg                # PWA icon (SVG)
+docs/
+├── SECURITY.md                # Security guidelines
+├── SHORTS_SOLUTION_RESEARCH.md
+└── archive/                   # Legacy documentation
+tasks/prds/                    # PRD documents
 tests/
 ├── setup.js                   # Vitest global setup (mocks fetch, alert)
 ├── unit/                      # Vitest unit tests
+├── debug/                     # Debug scripts
 └── *.spec.cjs                 # Playwright E2E tests
 ```
 
@@ -105,17 +116,18 @@ await jobState.addPhoto('before_car', {
 // Retrieve photos with image data from IndexedDB
 const photosWithData = await jobState.getPhotosWithData();
 
-// Auto-cleanup: sessions expire after 24 hours
+// Auto-cleanup: 8h absolute timeout, 30min inactivity timeout
 if (jobState.isExpired()) await jobState.reset();
 ```
 
-### Database Schema (db.js:14-30)
+### Database Schema (db.js:34-49)
 
 ```javascript
-db.version(2).stores({
-  jobs: '++id, job_number, work_date, car_model, technician_id, status, created_at, updated_at',
-  photos: '++id, job_id, category, sequence, uploaded_at',
-  temp_photos: '++id, session_id, category, sequence, created_at',  // Upload session storage
+// Version 3: Compound indexes for better query performance
+db.version(3).stores({
+  jobs: '++id, job_number, work_date, car_model, technician_id, status, created_at, updated_at, [work_date+status]',
+  photos: '++id, job_id, category, sequence, uploaded_at, [job_id+sequence]',
+  temp_photos: '++id, session_id, category, sequence, created_at, [session_id+category]',
   users: '++id, &email, display_name, created_at',
   settings: '++id, key'
 });
@@ -143,6 +155,37 @@ AppError (base)
 ```javascript
 import { withRetry, fetchWithRetry } from './utils/retry.js';
 const result = await withRetry(() => uploadFile(file), { maxRetries: 3, delayMs: 1000 });
+```
+
+### Image Compression (utils/image-compressor.js)
+
+Uses `browser-image-compression` for EXIF orientation fix and size optimization:
+
+```javascript
+import { processImage, compressImage } from './utils/image-compressor.js';
+
+// Full processing: compress + thumbnail + EXIF fix
+const { image_data, thumbnail_data, file_size } = await processImage(file);
+
+// Just compression (returns File object)
+const compressedFile = await compressImage(file, { maxSizeMB: 0.5 });
+```
+
+Features:
+- Auto EXIF orientation correction (fixes rotated mobile photos)
+- Web Worker non-blocking compression
+- Default: 1MB max, 1920px max dimension
+
+### PWA Offline Support (vite-plugin-pwa)
+
+Service Worker auto-generated at build time:
+- All static assets cached for offline use
+- CDN resources (jsdelivr) cached for 30 days
+- Auto-update when new version deployed
+
+```bash
+npm run build    # Generates sw.js + workbox files in dist/
+npm run preview  # Test PWA locally at http://localhost:6011
 ```
 
 ---
@@ -182,7 +225,7 @@ Output: 1080x1920 WebM (vertical format for Reels/Shorts)
 - Coverage threshold: 70% (lines, functions, branches, statements)
 - Setup: `tests/setup.js` (mocks `fetch`, `alert`, `console`)
 - Test patterns: `tests/unit/**/*.test.js`, `tests/integration/**/*.test.js`
-- Aliases: `@` → `/src`, `@js` → `/src/js`, `@public` → `/src/public`
+- Aliases: `@` → `/src`, `@js` → `/src/js`, `@public` → `/src/public`, `@css` → `/src/css`
 
 **Playwright** (`playwright.config.cjs`):
 - Base URL: `http://localhost:6010`
@@ -229,7 +272,7 @@ navigator.storage.estimate().then(e =>
 - 입력 검증: `db-api.js` - `validateJobData()`, `validateFile()`
 - 파일 제한: 10MB, `image/jpeg|png|webp`, 최대 50장
 - CSP 헤더: `vite.config.js` - 서버 응답 헤더 설정
-- 세션 관리: 8시간 만료 + 30분 비활성 타임아웃
+- 세션 관리: 8시간 절대 만료 + 30분 비활성 타임아웃 (`state.js:337-346`)
 
 ---
 

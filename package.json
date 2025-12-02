@@ -12,8 +12,10 @@
     "test:ui": "vitest --ui"
   },
   "dependencies": {
+    "browser-image-compression": "^2.0.2",
     "dexie": "^4.0.10",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "vite-plugin-pwa": "^1.2.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",

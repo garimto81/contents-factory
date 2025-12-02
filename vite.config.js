@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import os from 'os';
 import { execSync } from 'child_process';
+import { VitePWA } from 'vite-plugin-pwa';
 
 // Get git info for version display
 function getGitInfo() {
@@ -43,7 +44,11 @@ const cspPolicy = [
   "form-action 'self'"
 ].join('; ');
 
+// GitHub Pages base path (set via environment variable or default to '/')
+const base = process.env.GITHUB_ACTIONS ? '/content-factory/' : '/';
+
 export default defineConfig({
+  base,
   root: 'src/public',
   publicDir: '../../public',
   // Inject build info at build/dev time
@@ -102,5 +107,54 @@ export default defineConfig({
       '@js': resolve(__dirname, 'src/js'),
       '@css': resolve(__dirname, 'src/css')
     }
-  }
+  },
+  plugins: [
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg'],
+      manifest: {
+        name: 'Photo Factory - 휠 복원 사진 관리',
+        short_name: 'Photo Factory',
+        description: '휠 복원 기술자를 위한 사진 관리 및 마케팅 영상 생성 앱',
+        theme_color: '#4A90D9',
+        background_color: '#1a1a2e',
+        display: 'standalone',
+        orientation: 'portrait',
+        scope: base,
+        start_url: base,
+        icons: [
+          {
+            src: 'favicon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
+          }
+        ]
+      },
+      workbox: {
+        // Cache all static assets
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        // Runtime caching for CDN resources
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'cdn-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
+        ]
+      },
+      devOptions: {
+        enabled: true // Enable PWA in dev mode for testing
+      }
+    })
+  ]
 });

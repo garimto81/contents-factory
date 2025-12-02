@@ -3,7 +3,6 @@ node_modules/
 
 # Build output
 dist/
-html/
 
 # Environment
 .env
@@ -22,9 +21,13 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Test
+# Test reports
 playwright-report/
+vitest-report/
 test-results/
+
+# Dev files (not for production)
+src/public/dev/
 
 # Cache
 .vite/
