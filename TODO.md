@@ -262,6 +262,85 @@ VAPID_PRIVATE_KEY=
 
 ---
 
+## 신규 프로젝트: Field Uploader + Shorts Generator (PRD-0013, PRD-0014)
+
+**목표**: 현장 → 클라우드 → 영상 생성 분산 워크플로우
+
+```
+스마트폰 (Field Uploader)     PocketBase        PC (Shorts Generator)
+     📷 촬영                      ☁️                 🎬 영상
+     📝 제목          ────▶     저장소     ────▶    생성
+     📤 전송                                        다운로드
+```
+
+### PRD-0013: Field Uploader (스마트폰 PWA) ✅ MVP 완료
+
+**예상 기간: 7일** | **PRD**: `tasks/prds/0013-prd-field-uploader.md`
+**위치**: `apps/frontend/`
+
+#### Phase 1: MVP (3일) ✅ 완료
+- [x] 프로젝트 초기화 (Vite + Vanilla JS)
+- [x] 카메라 API 연동 (`src/camera.js`)
+- [x] 이미지 압축 (`browser-image-compression` - `src/compress.js`)
+- [x] IndexedDB 오프라인 큐 (`src/db.js` - Dexie.js)
+- [x] PocketBase API 클라이언트 (`src/api.js`)
+- [x] 동기화 매니저 (`src/sync.js`)
+
+#### Phase 2: 안정화 (2일) ✅ 완료
+- [x] 에러 처리 (네트워크 실패, 용량 초과)
+- [x] 재시도 로직 (지수 백오프, 최대 5회)
+- [x] PWA 설정 (VitePWA 플러그인, Service Worker)
+
+#### Phase 3: 테스트 (2일) ✅ 완료
+- [x] Playwright E2E (모바일 에뮬레이션)
+  - 10개 테스트 통과: 페이지 로드, 오프라인, PWA
+- [ ] Vitest 단위 테스트 (선택사항)
+- [x] 오프라인 시나리오 테스트
+
+---
+
+### PRD-0014: Shorts Generator (PC CLI) 🚧 구조 생성
+
+**예상 기간: 8일** | **PRD**: `tasks/prds/0014-prd-shorts-generator.md`
+**위치**: `apps/backend/`
+
+#### Phase 1: MVP (5일) 🚧 진행 중
+- [x] 프로젝트 초기화 (Node.js)
+- [x] PocketBase API 클라이언트 (`src/api/pocketbase.js`)
+- [x] Editly 통합 (`src/video/generator.js`) - 기본 구조
+- [ ] 자막 렌더링 (한글 폰트 NotoSansKR)
+- [ ] BGM 믹싱
+- [ ] 로고 오버레이
+- [ ] CLI 완성 (`shorts-gen` 명령어)
+
+#### Phase 2: 기능 추가 (3일)
+- [ ] 템플릿 시스템 (휠 복원, 전/후 비교, 슬라이드쇼)
+- [ ] 5개 gl-transitions 전환 효과
+- [ ] 배치 처리 (여러 영상 순차 생성)
+- [ ] config.json 설정 파일
+
+#### Phase 3: GUI (선택, 5일)
+- [ ] Electron 앱
+- [ ] 사진 그리드 미리보기
+- [ ] 드래그 정렬
+- [ ] 실시간 영상 프리뷰
+
+---
+
+### 공통 인프라 ✅ 완료
+
+**위치**: `server/`
+
+- [x] PocketBase 서버 설정 (Docker)
+  - `docker-compose.yml` 생성
+  - 포트: 8090
+- [x] `photos` 컬렉션 마이그레이션 스크립트
+  - `pb_migrations/1733400000_create_photos.js`
+  - 필드: title, image, thumbnail, device_id, created_at
+- [ ] 통합 테스트 (Field Uploader → PocketBase → Shorts Generator)
+
+---
+
 ## 참고
 
 - 코드 리뷰 보고서: 2025-12-01

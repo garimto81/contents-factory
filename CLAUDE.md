@@ -34,11 +34,14 @@ npx vitest run                           # Run all unit tests once
 npx vitest run tests/unit/upload.test.js # Single test file
 npx vitest run --coverage                # With coverage (threshold: 70%)
 
-# E2E Tests (Playwright - requires dev server running first)
-npm run dev                              # Start dev server in one terminal
-npm test                                 # All browsers (in another terminal)
+# E2E Tests (Playwright)
+# IMPORTANT: Dev server must be running first in a separate terminal
+# Terminal 1: npm run dev
+# Terminal 2: npm test (or commands below)
+npm test                                 # All browsers
 npx playwright test --project=chromium   # Single browser
 npx playwright test --debug              # Debug mode with inspector
+npx playwright test tests/upload-ui.spec.cjs  # Single test file
 ```
 
 ### Port Configuration
@@ -50,13 +53,25 @@ npx playwright test --debug              # Debug mode with inspector
 
 **STRICT**: Port 6000-6009 are blocked by Chrome (X11 protocol). Do not use.
 
+### Build-time Variables (vite.config.js)
+
+코드에서 사용 가능한 빌드 변수:
+
+| 변수 | 설명 | 예시 |
+|------|------|------|
+| `__NETWORK_IP__` | 로컬 네트워크 IP | `"192.168.1.100"` |
+| `__DEV_PORT__` | 개발 서버 포트 | `6010` |
+| `__GIT_HASH__` | Git 커밋 해시 | `"a1b2c3d"` |
+| `__GIT_MESSAGE__` | 마지막 커밋 메시지 | `"feat: add..."` |
+| `__APP_VERSION__` | 앱 버전 | `"1.0.0"` |
+
 ---
 
 ## Architecture
 
 ```
 src/
-├── public/                    # HTML pages (Vite root)
+├── public/                    # HTML pages (Vite root: vite.config.js:52)
 │   ├── index.html             # Main page
 │   ├── upload.html            # Photo upload
 │   ├── gallery.html           # Photo gallery
@@ -73,16 +88,15 @@ src/
 │       ├── retry.js           # withRetry() - exponential backoff, 2min total timeout
 │       ├── sanitizer.js       # escapeHtml() for XSS prevention
 │       └── state.js           # JobState - hybrid LocalStorage + IndexedDB (8h session)
-public/
+public/                        # Static assets (Vite publicDir: vite.config.js:53)
 └── favicon.svg                # PWA icon (SVG)
 docs/
 ├── SECURITY.md                # Security guidelines
-├── SHORTS_SOLUTION_RESEARCH.md
 └── archive/                   # Legacy documentation
 tasks/prds/                    # PRD documents
 tests/
 ├── setup.js                   # Vitest global setup (mocks fetch, alert)
-├── unit/                      # Vitest unit tests
+├── unit/                      # Vitest unit tests (*.test.js)
 ├── debug/                     # Debug scripts
 └── *.spec.cjs                 # Playwright E2E tests
 ```
@@ -224,8 +238,8 @@ Output: 1080x1920 WebM (vertical format for Reels/Shorts)
 - Environment: `happy-dom`
 - Coverage threshold: 70% (lines, functions, branches, statements)
 - Setup: `tests/setup.js` (mocks `fetch`, `alert`, `console`)
-- Test patterns: `tests/unit/**/*.test.js`, `tests/integration/**/*.test.js`
-- Aliases: `@` → `/src`, `@js` → `/src/js`, `@public` → `/src/public`, `@css` → `/src/css`
+- Test patterns: `tests/unit/*.test.js`, `tests/integration/*.test.js`
+- Aliases: `@` → `/src`, `@js` → `/src/js`, `@public` → `/src/public`
 
 **Playwright** (`playwright.config.cjs`):
 - Base URL: `http://localhost:6010`
@@ -257,14 +271,47 @@ navigator.storage.estimate().then(e =>
 
 ---
 
-## Remaining Technical Debt
+## Roadmap
 
-코드 리뷰 결과 (2025-12-01) 대부분 해결됨. 남은 항목은 `TODO.md` 참조.
+미래 기능 및 아키텍처 계획은 `TODO.md` 참조:
 
-| 영역 | 이슈 | 우선순위 |
-|------|------|----------|
-| Style | Magic Numbers 상수화 | Medium |
-| Style | JSDoc 보완 | Low |
+| PRD | 설명 | 상태 |
+|-----|------|------|
+| PRD-0011 | 쇼츠 품질 향상 (BGM, 자막, 로고) | 계획됨 |
+| PRD-0012 | 분산 아키텍처 (Supabase, Push) | 계획됨 |
+| **PRD-0013** | **Field Uploader** - 현장 사진 촬영 → 클라우드 전송 | ✅ MVP 완료 |
+| **PRD-0014** | **Shorts Generator** - 클라우드 이미지 → 쇼츠 영상 생성 | 🚧 구조 생성 |
+
+### 분산 아키텍처 (PRD-0013 + PRD-0014)
+
+```
+스마트폰 (Field Uploader)     PocketBase        PC (Shorts Generator)
+     📷 촬영                      ☁️                 🎬 영상
+     📝 제목          ────▶     저장소     ────▶    생성
+     📤 전송                                        다운로드
+```
+
+### 프로젝트 구조
+
+```
+contents-factory/
+├── src/                    # 기존 Photo Factory PWA
+├── apps/
+│   ├── frontend/           # PRD-0013: Field Uploader (Vite + PWA)
+│   │   ├── src/
+│   │   │   ├── main.js, camera.js, compress.js
+│   │   │   ├── db.js, api.js, sync.js
+│   │   │   └── style.css
+│   │   ├── tests/upload.spec.js
+│   │   └── playwright.config.js
+│   └── backend/            # PRD-0014: Shorts Generator (Node.js CLI)
+│       └── src/
+│           ├── api/pocketbase.js
+│           └── video/generator.js
+└── server/                 # PocketBase (Docker)
+    ├── docker-compose.yml
+    └── pb_migrations/
+```
 
 ### Implemented Security Features
 
@@ -273,6 +320,7 @@ navigator.storage.estimate().then(e =>
 - 파일 제한: 10MB, `image/jpeg|png|webp`, 최대 50장
 - CSP 헤더: `vite.config.js` - 서버 응답 헤더 설정
 - 세션 관리: 8시간 절대 만료 + 30분 비활성 타임아웃 (`state.js:337-346`)
+- 상세: `docs/SECURITY.md`
 
 ---
 
@@ -286,6 +334,29 @@ navigator.storage.estimate().then(e =>
 | JS 변수/함수 | camelCase | `storageKey`, `getPhotosWithData` |
 | 상수 | UPPER_SNAKE | `MAX_FILE_SIZE`, `CATEGORIES` |
 | 클래스 | PascalCase | `JobState`, `AppError` |
+
+---
+
+## Deployment
+
+### GitHub Pages (자동)
+
+GitHub Actions가 `main` 브랜치 push 시 자동 배포:
+
+```bash
+# 배포 URL
+https://<username>.github.io/content-factory/
+
+# Base path (vite.config.js:48)
+# GitHub Actions에서 자동 설정: /content-factory/
+```
+
+### 수동 배포
+
+```bash
+npm run build        # dist/ 생성
+npm run preview      # 로컬 테스트 (http://localhost:6011)
+```
 
 ---
 
