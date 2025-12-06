@@ -1,10 +1,121 @@
 /**
  * Photo Factory - Marketing Video Generator
  * Creates slideshow videos from job photos using Canvas + MediaRecorder API
+ *
+ * iOS Support: Safari 17+ has limited MediaRecorder support.
+ * For iOS < 17, server-side conversion is recommended.
  */
 
 // Constants
 const VIDEO_TIMEOUT_MS = 60 * 1000;  // 60 seconds max for video generation
+
+// MIME type priorities (best first)
+const MIME_TYPES = [
+  'video/webm;codecs=vp9',     // Best quality (Chrome, Firefox)
+  'video/webm;codecs=vp8',     // Fallback WebM (older browsers)
+  'video/mp4;codecs=h264',     // MP4 (Safari 17+, limited support)
+  'video/mp4',                 // Generic MP4
+  'video/webm'                 // Generic WebM
+];
+
+/**
+ * Detect iOS device
+ * @returns {boolean}
+ */
+export function isIOSDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+/**
+ * Detect Safari browser
+ * @returns {boolean}
+ */
+export function isSafari() {
+  return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+}
+
+/**
+ * Check if MediaRecorder is supported
+ * @returns {boolean}
+ */
+export function isMediaRecorderSupported() {
+  return typeof MediaRecorder !== 'undefined';
+}
+
+/**
+ * Get best supported MIME type for MediaRecorder
+ * @returns {string|null}
+ */
+export function getBestMimeType() {
+  if (!isMediaRecorderSupported()) return null;
+
+  for (const mimeType of MIME_TYPES) {
+    if (MediaRecorder.isTypeSupported(mimeType)) {
+      return mimeType;
+    }
+  }
+  return null;
+}
+
+/**
+ * Get video format info based on MIME type
+ * @param {string} mimeType
+ * @returns {Object}
+ */
+function getFormatInfo(mimeType) {
+  if (mimeType?.includes('mp4')) {
+    return { extension: 'mp4', type: 'video/mp4' };
+  }
+  return { extension: 'webm', type: 'video/webm' };
+}
+
+/**
+ * Check device video generation capabilities
+ * @returns {Object} - { supported, mimeType, message, needsServerConversion }
+ */
+export function checkVideoCapabilities() {
+  const isIOS = isIOSDevice();
+  const safari = isSafari();
+  const supported = isMediaRecorderSupported();
+  const mimeType = getBestMimeType();
+
+  if (!supported) {
+    return {
+      supported: false,
+      mimeType: null,
+      message: '이 브라우저는 영상 생성을 지원하지 않습니다.',
+      needsServerConversion: true
+    };
+  }
+
+  if (isIOS && safari && !mimeType) {
+    return {
+      supported: false,
+      mimeType: null,
+      message: 'iOS Safari에서는 영상 생성이 제한됩니다. PC에서 Shorts Generator를 사용하세요.',
+      needsServerConversion: true
+    };
+  }
+
+  if (isIOS) {
+    return {
+      supported: !!mimeType,
+      mimeType,
+      message: mimeType
+        ? 'iOS에서 MP4 형식으로 생성됩니다.'
+        : 'iOS Safari 17 이상에서 지원됩니다. PC 사용을 권장합니다.',
+      needsServerConversion: !mimeType
+    };
+  }
+
+  return {
+    supported: !!mimeType,
+    mimeType,
+    message: mimeType ? null : '지원되는 비디오 형식이 없습니다.',
+    needsServerConversion: !mimeType
+  };
+}
 
 /**
  * Generate marketing video from photos
@@ -25,18 +136,33 @@ export async function generateMarketingVideo(photos, jobInfo, options = {}) {
     onProgress = null
   } = options;
 
+  // Check capabilities first
+  const capabilities = checkVideoCapabilities();
+  if (!capabilities.supported) {
+    throw new Error(capabilities.message || 'Video generation not supported on this device');
+  }
+
+  const mimeType = capabilities.mimeType;
+  const formatInfo = getFormatInfo(mimeType);
+
   // Create canvas
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
 
-  // Setup MediaRecorder
+  // Setup MediaRecorder with best available format
   const stream = canvas.captureStream(fps);
-  const mediaRecorder = new MediaRecorder(stream, {
-    mimeType: 'video/webm;codecs=vp9',
+  const recorderOptions = {
     videoBitsPerSecond: bitrate
-  });
+  };
+
+  // Only set mimeType if it's supported (some browsers fail if explicitly set)
+  if (mimeType && MediaRecorder.isTypeSupported(mimeType)) {
+    recorderOptions.mimeType = mimeType;
+  }
+
+  const mediaRecorder = new MediaRecorder(stream, recorderOptions);
 
   const chunks = [];
   mediaRecorder.ondataavailable = (e) => {
@@ -78,7 +204,7 @@ export async function generateMarketingVideo(photos, jobInfo, options = {}) {
       if (!isCompleted) {
         isCompleted = true;
         cleanup();
-        const blob = new Blob(chunks, { type: 'video/webm' });
+        const blob = new Blob(chunks, { type: formatInfo.type });
         resolve(blob);
       }
     };
@@ -280,10 +406,16 @@ export function downloadVideo(blob, filename = 'marketing-video.webm') {
  * @param {Array} photos - Array of photos
  * @param {Object} jobInfo - Job information
  * @param {Function} onProgress - Progress callback (0-100)
- * @returns {Promise<void>}
+ * @returns {Promise<Blob>}
  */
 export async function generateAndDownloadVideo(photos, jobInfo, onProgress) {
   try {
+    // Check capabilities first
+    const capabilities = checkVideoCapabilities();
+    if (!capabilities.supported) {
+      throw new Error(capabilities.message || 'Video generation not supported');
+    }
+
     // Sort photos by category order, then by sequence within each category
     const categoryOrder = ['before_car', 'before_wheel', 'during', 'after_wheel', 'after_car'];
     const sortedPhotos = [...photos].sort((a, b) => {
@@ -303,7 +435,9 @@ export async function generateAndDownloadVideo(photos, jobInfo, onProgress) {
       onProgress
     });
 
-    const filename = `${jobInfo.job_number || 'video'}_marketing.webm`;
+    // Determine file extension based on blob type
+    const extension = blob.type.includes('mp4') ? 'mp4' : 'webm';
+    const filename = `${jobInfo.job_number || 'video'}_marketing.${extension}`;
     downloadVideo(blob, filename);
 
     return blob;
