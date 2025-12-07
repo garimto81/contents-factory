@@ -29,33 +29,69 @@ npm run preview            # Preview → http://localhost:6011
 # Tests
 npm run test:unit          # Vitest (watch mode)
 npx vitest run --coverage  # Coverage (threshold: 70%)
-npm test                   # Playwright E2E (dev 서버 먼저 실행)
+
+# E2E (Playwright) - dev 서버 먼저 실행 필수
+npm run dev                # 터미널 1: 서버 시작
+npm test                   # 터미널 2: E2E 실행
+
+# 단일 테스트 실행
+npx vitest run tests/unit/upload.test.js                        # 특정 unit
+npx playwright test tests/upload-ui.spec.cjs --project=chromium # 특정 E2E
 ```
 
 **Port**: 6010 (dev), 6011 (preview). Port 6000-6009는 Chrome 차단됨.
+
+### Test Environment
+
+| Framework | Environment | Timeout | Note |
+|-----------|-------------|---------|------|
+| Vitest | happy-dom | 10s | `globals: true` |
+| Playwright | Real browsers | 30s | baseURL: localhost:6010 |
+
+**Playwright Projects**: chromium, firefox, webkit, Mobile Chrome (Pixel 5), Mobile Safari (iPhone 12)
+
+### Path Aliases
+
+| Alias | Path | Available In |
+|-------|------|--------------|
+| `@` | `/src` | Vite, Vitest |
+| `@js` | `/src/js` | Vite, Vitest |
+| `@css` | `/src/css` | Vite only |
 
 ---
 
 ## Architecture
 
+### 메인 PWA (src/)
+
 ```
 src/
-├── public/                # HTML pages
-│   ├── index.html         # 메인
-│   ├── upload.html        # 업로드
+├── public/                # HTML pages (Vite root)
+│   ├── index.html         # 메인 (작업 목록)
+│   ├── upload.html        # 5-Category 사진 업로드
 │   ├── gallery.html       # 갤러리
-│   └── job-detail.html    # 작업 상세
+│   └── job-detail.html    # 작업 상세 + 영상 생성
 └── js/
-    ├── db.js              # IndexedDB (Dexie.js)
+    ├── db.js              # IndexedDB (Dexie.js v3 schema)
     ├── db-api.js          # API layer + validation
-    ├── video-generator.js # Canvas + MediaRecorder
-    └── utils/             # errors, retry, state, sanitizer
-apps/
-├── frontend/              # Field Uploader (스마트폰 PWA)
-└── backend/               # Shorts Generator (PC CLI)
-server/                    # PocketBase (Docker)
-tests/                     # unit/*.test.js, *.spec.cjs
-docs/                      # 상세 문서 (README.md 참조)
+    ├── video-generator.js # Canvas + MediaRecorder (1080x1920 WebM)
+    └── utils/             # 공용 유틸리티
+```
+
+### Data Flow
+
+```
+LocalStorage (메타데이터)     IndexedDB (이미지)
+      carModel, jobNumber  →  temp_photos 테이블
+             ↓                      ↓
+      작업 완료 시 jobs 테이블 + photos 테이블로 이동
+```
+
+### 분산 시스템 (apps/, server/)
+
+```
+스마트폰 (apps/frontend)  →  PocketBase (server/)  →  PC (apps/backend)
+     📷 촬영                    ☁️ 동기화               🎬 FFmpeg 영상
 ```
 
 > 상세: [docs/development/architecture.md](docs/development/architecture.md)
@@ -91,6 +127,17 @@ AppError
 └── ValidationError (retry: false, input fix required)
 ```
 
+### IndexedDB Schema (Version 3)
+
+```javascript
+// db.js - Dexie.js
+jobs: '++id, job_number, work_date, car_model, status, [work_date+status]'
+photos: '++id, job_id, category, sequence, [job_id+sequence]'
+temp_photos: '++id, session_id, category, sequence, [session_id+category]'
+users: '++id, &email, display_name'
+settings: '++id, key'
+```
+
 > 상세: [docs/development/architecture.md](docs/development/architecture.md)
 
 ---
@@ -108,37 +155,23 @@ await generateAndDownloadVideo(photos, { car_model: 'BMW', job_number: 'WHL25011
 
 ## Sub-Projects
 
-```
-스마트폰 (Field Uploader)  →  PocketBase  →  PC (Shorts Generator)
-     📷 촬영                    ☁️ 저장        🎬 영상 생성
-```
-
-### apps/frontend - Field Uploader
-
-```bash
-cd apps/frontend && npm install && npm run dev  # http://localhost:5173
-```
-
-### apps/backend - Shorts Generator
+| 프로젝트 | 경로 | 포트 | 용도 |
+|----------|------|------|------|
+| Field Uploader | `apps/frontend` | 5173 | 스마트폰 촬영 PWA |
+| Shorts Generator | `apps/backend` | - | PC CLI (FFmpeg) |
+| PocketBase | `server` | 8090 | 동기화 서버 (Docker) |
 
 ```bash
+# Field Uploader
+cd apps/frontend && npm install && npm run dev
+
+# Shorts Generator (FFmpeg 필요: winget install FFmpeg)
 cd apps/backend && npm install
-
-# 기본 실행
 node src/index.js list       # 사진 목록
 node src/index.js create     # 영상 생성
 
-# 전역 CLI (선택)
-npm link                     # 전역 등록
-shorts-gen list              # 전역 명령어
-```
-
-**요구사항**: FFmpeg (`winget install FFmpeg`)
-
-### server - PocketBase
-
-```bash
-cd server && docker-compose up -d  # http://localhost:8090
+# PocketBase (Docker 필요)
+cd server && docker-compose up -d
 ```
 
 ---
@@ -167,11 +200,14 @@ cd server && docker-compose up -d  # http://localhost:8090
 
 ## Deployment
 
-**GitHub Pages**: `main` push → 자동 배포
+**GitHub Pages**: `main` push → 자동 배포 → `/content-factory/` 경로
 
 ```bash
 npm run build && npm run preview  # 로컬 테스트
 ```
+
+- Build base path: `/content-factory/` (GitHub Actions에서 자동 설정)
+- 로컬 개발: `/` (기본값)
 
 > 상세: [docs/deployment/github-pages.md](docs/deployment/github-pages.md)
 
