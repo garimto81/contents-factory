@@ -87,11 +87,11 @@ LocalStorage (메타데이터)     IndexedDB (이미지)
       작업 완료 시 jobs 테이블 + photos 테이블로 이동
 ```
 
-### 분산 시스템 (apps/, server/)
+### 분산 시스템 (별도 레포)
 
 ```
-스마트폰 (apps/frontend)  →  PocketBase (server/)  →  PC (apps/backend)
-     📷 촬영                    ☁️ 동기화               🎬 FFmpeg 영상
+스마트폰 (field-uploader)  →  PocketBase (server/)  →  PC (shorts-generator)
+     📷 촬영                      ☁️ 동기화              🎬 FFmpeg 영상
 ```
 
 > 상세: [docs/development/architecture.md](docs/development/architecture.md)
@@ -153,25 +153,17 @@ await generateAndDownloadVideo(photos, { car_model: 'BMW', job_number: 'WHL25011
 
 ---
 
-## Sub-Projects
+## Related Repositories
 
-| 프로젝트 | 경로 | 포트 | 용도 |
-|----------|------|------|------|
-| Field Uploader | `apps/frontend` | 5173 | 스마트폰 촬영 PWA |
-| Shorts Generator | `apps/backend` | - | PC CLI (FFmpeg) |
-| PocketBase | `server` | 8090 | 동기화 서버 (Docker) |
+| 레포지토리 | 용도 | URL |
+|------------|------|-----|
+| **field-uploader** | 스마트폰 촬영 PWA | [github.com/garimto81/field-uploader](https://github.com/garimto81/field-uploader) |
+| **shorts-generator** | PC 영상 생성 CLI | [github.com/garimto81/shorts-generator](https://github.com/garimto81/shorts-generator) |
+
+### PocketBase 서버
 
 ```bash
-# Field Uploader
-cd apps/frontend && npm install && npm run dev
-
-# Shorts Generator (FFmpeg 필요: winget install FFmpeg)
-cd apps/backend && npm install
-node src/index.js list       # 사진 목록
-node src/index.js create     # 영상 생성
-
-# PocketBase (Docker 필요)
-cd server && docker-compose up -d
+cd server && docker-compose up -d  # http://localhost:8090
 ```
 
 ---
